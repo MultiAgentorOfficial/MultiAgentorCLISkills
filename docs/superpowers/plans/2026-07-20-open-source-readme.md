@@ -49,7 +49,7 @@ Add language links at the top of both README files.
 **Files:**
 - Verify: `README.md`
 - Verify: `README.zh-CN.md`
-- Verify: `skills/multiagentor-cli-assistant/SKILL.md`
+- Verify: `skills/multiagentor/SKILL.md`
 
 - [x] **Step 1: Check repository-relative links**
 

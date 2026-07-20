@@ -1,0 +1,4 @@
+interface:
+  display_name: "MultiAgentor"
+  short_description: "Install, operate, and troubleshoot MultiAgentor CLI"
+  default_prompt: "Use $multiagentor to set up MultiAgentor CLI and guide my automation task."

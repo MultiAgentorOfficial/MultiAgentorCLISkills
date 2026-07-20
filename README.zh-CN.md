@@ -4,7 +4,7 @@
 
 本项目提供用于在 Windows 上安装、使用和排查 [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) 的 Codex 技能。
 
-仓库目前包含 `multiagentor-cli-assistant`：它能把自然语言自动化需求转换为安全、可执行的 MultiAgentor CLI 工作流。用户不必记忆脚本 ID、浏览器 ID 或大量命令参数，Codex 会先发现真实候选项，再协助创建任务、运行 RPA、检查日志并定位故障。
+仓库目前包含 `multiagentor`：它能把自然语言自动化需求转换为安全、可执行的 MultiAgentor CLI 工作流。用户不必记忆脚本 ID、浏览器 ID 或大量命令参数，Codex 会先发现真实候选项，再协助创建任务、运行 RPA、检查日志并定位故障。
 
 ## 技能能力
 
@@ -22,7 +22,7 @@
 
 ```text
 skills/
-└── multiagentor-cli-assistant/
+└── multiagentor/
     ├── SKILL.md                     # 技能主指令
     ├── agents/
     │   └── openai.yaml              # Codex 界面元数据
@@ -49,7 +49,7 @@ skills/
 
 ```text
 使用 $skill-installer 安装这个技能：
-https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor-cli-assistant
+https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor
 ```
 
 安装完成后新建一个 Codex 任务，让 Codex 发现新技能。
@@ -64,8 +64,8 @@ $codexHome = if ($env:CODEX_HOME) {
 } else {
     Join-Path $env:USERPROFILE '.codex'
 }
-$source = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor-cli-assistant'
-$destination = Join-Path $codexHome 'skills\multiagentor-cli-assistant'
+$source = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor'
+$destination = Join-Path $codexHome 'skills\multiagentor'
 
 if (Test-Path $destination) {
     throw "Skill already exists at $destination. Back it up or remove it before reinstalling."
@@ -104,6 +104,10 @@ npx.cmd --yes multiagentor-cli@latest --help
 直接用自然语言向 Codex 描述目标，例如：
 
 ```text
+使用 $multiagentor 安装 CLI 并帮我登录。
+```
+
+```text
 安装 MultiAgentor CLI 并帮我登录。
 ```
 
@@ -123,11 +127,13 @@ Codex 会先发现可用选项。创建任务前，它会展示所选脚本可�
 
 ## 更新与卸载
 
-如果通过 `$skill-installer` 安装，请先备份或移除现有的 `multiagentor-cli-assistant` 技能目录，再从 GitHub 地址重新安装。安装器发现目标目录已存在时会主动停止，避免覆盖已有内容。
+如果通过 `$skill-installer` 安装，请先备份或移除现有的 `multiagentor` 技能目录，再从 GitHub 地址重新安装。安装器发现目标目录已存在时会主动停止，避免覆盖已有内容。
 
-如果通过手动方式安装，可先拉取本仓库最新版本，再将 `skills/multiagentor-cli-assistant` 中的更新内容复制到已安装目录。更新后请新建一个 Codex 任务。
+如果以前安装的版本名为 `multiagentor-cli-assistant`，请先安装新的 `multiagentor` 目录，验证后再移除旧目录。保留两个目录可能导致 Codex 同时发现两个重复技能。
 
-卸载时，只需移除 `$CODEX_HOME/skills`（或 `%USERPROFILE%\.codex\skills`）下的 `multiagentor-cli-assistant` 目录。该操作不会卸载 npm CLI，也不会删除 CLI 的本地任务数据。
+如果通过手动方式安装，可先拉取本仓库最新版本，再将 `skills/multiagentor` 中的更新内容复制到已安装目录。更新后请新建一个 Codex 任务。
+
+卸载时，只需移除 `$CODEX_HOME/skills`（或 `%USERPROFILE%\.codex\skills`）下的 `multiagentor` 目录。该操作不会卸载 npm CLI，也不会删除 CLI 的本地任务数据。
 
 ## 参与贡献
 

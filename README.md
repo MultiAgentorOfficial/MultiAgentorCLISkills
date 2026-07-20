@@ -4,7 +4,7 @@
 
 Codex skills for installing, using, and troubleshooting [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) on Windows.
 
-This repository currently contains `multiagentor-cli-assistant`, a reusable Codex skill that turns a natural-language automation request into a safe MultiAgentor CLI workflow. It can help discover scripts and browser environments, create and run tasks, inspect logs, and diagnose failures without requiring users to memorize IDs or command flags.
+This repository currently contains `multiagentor`, a reusable Codex skill that turns a natural-language automation request into a safe MultiAgentor CLI workflow. It can help discover scripts and browser environments, create and run tasks, inspect logs, and diagnose failures without requiring users to memorize IDs or command flags.
 
 ## What the skill does
 
@@ -22,7 +22,7 @@ The skill is guidance for Codex; the CLI performs the actual automation. Install
 
 ```text
 skills/
-└── multiagentor-cli-assistant/
+└── multiagentor/
     ├── SKILL.md                     # Main agent instructions
     ├── agents/
     │   └── openai.yaml              # Codex UI metadata
@@ -49,7 +49,7 @@ In Codex, enter:
 
 ```text
 Use $skill-installer to install the skill from:
-https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor-cli-assistant
+https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor
 ```
 
 Start a new Codex task after installation so the new skill is discovered.
@@ -64,8 +64,8 @@ $codexHome = if ($env:CODEX_HOME) {
 } else {
     Join-Path $env:USERPROFILE '.codex'
 }
-$source = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor-cli-assistant'
-$destination = Join-Path $codexHome 'skills\multiagentor-cli-assistant'
+$source = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor'
+$destination = Join-Path $codexHome 'skills\multiagentor'
 
 if (Test-Path $destination) {
     throw "Skill already exists at $destination. Back it up or remove it before reinstalling."
@@ -104,6 +104,10 @@ The first npm-launched `run start` or `run execute` may download and verify the 
 Ask Codex in natural language. For example:
 
 ```text
+Use $multiagentor to install the CLI and help me sign in.
+```
+
+```text
 Install MultiAgentor CLI and help me sign in.
 ```
 
@@ -123,11 +127,13 @@ Codex should discover available choices first. Before task creation, it will sho
 
 ## Update or uninstall
 
-To update an installation made by `$skill-installer`, back up or remove the existing `multiagentor-cli-assistant` skill directory and install it again from the GitHub URL. The installer intentionally stops when the destination already exists.
+To update an installation made by `$skill-installer`, back up or remove the existing `multiagentor` skill directory and install it again from the GitHub URL. The installer intentionally stops when the destination already exists.
 
-For a manual installation, pull this repository and copy the updated contents of `skills/multiagentor-cli-assistant` into the installed skill directory. Start a new Codex task after updating.
+If you installed a version named `multiagentor-cli-assistant`, install the new `multiagentor` directory and then remove the old directory after verification. Keeping both directories may cause Codex to discover duplicate skills.
 
-To uninstall, remove only the installed `multiagentor-cli-assistant` directory from `$CODEX_HOME/skills` (or `%USERPROFILE%\.codex\skills`). This does not uninstall the npm CLI or delete its local task data.
+For a manual installation, pull this repository and copy the updated contents of `skills/multiagentor` into the installed skill directory. Start a new Codex task after updating.
+
+To uninstall, remove only the installed `multiagentor` directory from `$CODEX_HOME/skills` (or `%USERPROFILE%\.codex\skills`). This does not uninstall the npm CLI or delete its local task data.
 
 ## Contributing
 

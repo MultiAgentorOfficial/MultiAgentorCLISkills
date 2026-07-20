@@ -1,9 +1,9 @@
 ---
-name: multiagentor-cli-assistant
+name: multiagentor
 description: Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, script discovery, browser environment creation, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a script/browser/task, or reports a CLI/run failure. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs.
 ---
 
-# MultiAgentor CLI Assistant
+# MultiAgentor
 
 Turn the user's goal into a valid MultiAgentor CLI workflow. Reduce cognitive load: discover what can be discovered, recommend a choice with a reason, and only ask about information that cannot be inferred safely.
 
