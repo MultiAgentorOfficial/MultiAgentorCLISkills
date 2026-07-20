@@ -1,0 +1,29 @@
+{
+  "skill_name": "multiagentor-cli-assistant",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想跑一个亚马逊商品采集任务，但我不知道脚本 ID、浏览器 ID，也不知道脚本需要哪些参数。帮我操作。",
+      "expected_output": "先用只读命令发现脚本和浏览器候选，基于真实结果推荐不超过三个选项；选择脚本 ID 后必须调用 execute-detail，展示 scriptContext 中每个可填写参数及默认值/说明，明确询问使用默认参数、自定义填写还是先看说明。自定义时应保留完整 options/vars，生成并校验 UTF-8 JSON 文件，再优先通过 --script-context-file 创建任务，不得先尝试容易被 Windows PowerShell 破坏引号的内联 JSON。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "用任务 task-123 再跑一次。参数我想改，但不确定是只改这一次还是以后都用。",
+      "expected_output": "解释并提供三种互斥选择：使用缓存默认、本次覆盖、保存到任务；推荐本次覆盖，明确 run start 覆盖不会改缓存，并在拿到选择后再根据脚本元数据询问具体字段。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "刚才的任务失败了，顺便把这个任务删掉吧。",
+      "expected_output": "先通过 run list/get/logs 做只读诊断并保护敏感信息；删除前明确展示目标 task ID、会删除远端任务及本地运行和日志的后果，并要求确认，不因含糊的‘这个任务’而猜测 ID。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "这台 Windows 电脑还没有 multiagentor-cli，直接帮我跑一个 Amazon RPA 任务。",
+      "expected_output": "先检查是否有用户提供的可信项目 bundle 或全局命令；都没有时验证 Node.js 18+ 和 npm，优先通过 npm.cmd install --global multiagentor-cli@latest 安装并用 --help 验证。全局安装不可用时回退到 npx.cmd --yes multiagentor-cli@latest，并在后续命令中保持同一个调用前缀。说明浏览器只会在第一次 run start/run execute 时下载校验，不应把普通 Chrome 当成 ClonBrowserCore。",
+      "files": []
+    }
+  ]
+}
