@@ -24,6 +24,10 @@
 skills/
 └── multiagentor-cli-assistant/
     ├── SKILL.md                     # 技能主指令
+    ├── agents/
+    │   └── openai.yaml              # Codex 界面元数据
+    ├── scripts/
+    │   └── bootstrap-portable-cli.ps1 # 便携 Node.js 与 CLI 引导脚本
     ├── references/
     │   └── command-reference.md     # CLI 命令参考
     └── evals/
@@ -34,7 +38,7 @@ skills/
 
 - 支持 Skills 的 Codex。
 - Windows 与 PowerShell（当前 CLI 工作流以此为准）。
-- 通过 npm 安装 CLI 时，需要 Node.js 18 或更高版本及 npm。
+- 如果系统已有 Node.js/npm，需要 Node.js 18 或更高版本；如果没有，技能可自动准备隔离的便携运行环境。
 - MultiAgentor 账号，以及任务所需脚本和浏览器环境的访问权限。
 
 ## 在 Codex 中安装
@@ -90,6 +94,8 @@ multiagentor-cli --help
 ```powershell
 npx.cmd --yes multiagentor-cli@latest --help
 ```
+
+如果没有 Node.js 或 npm，技能会自动运行便携环境引导脚本：从 Node.js 官方分发源下载匹配 Windows x64/ARM64 的 LTS ZIP，完成 SHA-256 校验后，将 Node.js 和 CLI 安装到 `%APPDATA%\multiagentor-cli\portable-runtime`。整个过程无需管理员权限，不修改系统 PATH，也不会在系统中全局安装 Node.js。
 
 首次通过 npm 启动 `run start` 或 `run execute` 时，CLI 可能会下载并校验配套的 RPA Agent 和兼容浏览器运行时，并缓存到 `%APPDATA%\multiagentor-cli\`。帮助、登录、配置及远程增删改查命令不会触发浏览器下载。
 

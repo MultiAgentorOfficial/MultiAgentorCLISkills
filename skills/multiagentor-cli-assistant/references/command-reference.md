@@ -18,6 +18,17 @@ npx.cmd --yes multiagentor-cli@latest --help
 npx.cmd --yes multiagentor-cli@latest auth oauth
 ```
 
+If Node.js/npm is missing or Node.js is older than 18, run the skill's portable bootstrap script with Windows PowerShell:
+
+```powershell
+$runtime = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-skill>\scripts\bootstrap-portable-cli.ps1 |
+    Select-Object -Last 1 |
+    ConvertFrom-Json
+& $runtime.invocation --help
+```
+
+The script downloads the newest compatible Node.js LTS ZIP for Windows x64 or ARM64 from `nodejs.org`, checks it against the release's official `SHASUMS256.txt`, extracts it under `%APPDATA%\multiagentor-cli\portable-runtime`, installs the CLI in that isolated cache, and creates `multiagentor-cli-portable.cmd`. It does not modify the system PATH or install Node.js machine-wide. Reuse `$runtime.invocation` for all later commands in the workflow.
+
 The npm package includes the Windows x64 Go CLI and RPA Agent, but not the browser. The first npm-launched `run start` or `run execute` downloads and verifies the configured browser runtime, then caches the Agent and browser under `%APPDATA%\multiagentor-cli\`. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
 
 ## Global flags

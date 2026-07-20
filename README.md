@@ -24,6 +24,10 @@ The skill is guidance for Codex; the CLI performs the actual automation. Install
 skills/
 └── multiagentor-cli-assistant/
     ├── SKILL.md                     # Main agent instructions
+    ├── agents/
+    │   └── openai.yaml              # Codex UI metadata
+    ├── scripts/
+    │   └── bootstrap-portable-cli.ps1 # Portable Node.js and CLI bootstrap
     ├── references/
     │   └── command-reference.md     # CLI command reference
     └── evals/
@@ -34,7 +38,7 @@ skills/
 
 - Codex with skill support.
 - Windows and PowerShell for the documented CLI workflow.
-- Node.js 18 or newer and npm when the CLI is installed from npm.
+- Node.js 18 or newer and npm when already available. If they are missing, the skill can bootstrap an isolated portable runtime automatically.
 - A MultiAgentor account and access to the scripts/browser environments used by your task.
 
 ## Install in Codex
@@ -90,6 +94,8 @@ If a global installation is unavailable, use the non-interactive npm launcher co
 ```powershell
 npx.cmd --yes multiagentor-cli@latest --help
 ```
+
+If Node.js or npm is unavailable, the skill automatically runs its portable bootstrap. It downloads the matching Windows x64/ARM64 Node.js LTS ZIP from the official Node.js distribution, verifies SHA-256, and installs Node.js plus the CLI under `%APPDATA%\multiagentor-cli\portable-runtime`. It does not require an administrator account, change the system PATH, or install Node.js machine-wide.
 
 The first npm-launched `run start` or `run execute` may download and verify the packaged RPA Agent and compatible browser runtime. They are cached under `%APPDATA%\multiagentor-cli\`; regular help, authentication, configuration, and remote CRUD commands do not trigger that download.
 

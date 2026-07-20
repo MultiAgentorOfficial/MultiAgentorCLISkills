@@ -24,15 +24,25 @@ Resolve one stable invocation and reuse it for the entire workflow.
 
 1. If the user supplied a project bundle containing `multiagentor-cli.cmd`, use that launcher, especially for local runs. Do not download a duplicate CLI merely because the command is not global.
 2. Otherwise test `Get-Command multiagentor-cli -ErrorAction SilentlyContinue`.
-3. If the command is absent, first verify `node --version` and `npm --version`; require Node.js 18 or newer.
-4. Prefer installing the current npm release for a reusable workflow:
+3. If the command is absent, check `node --version` and `npm --version`; require Node.js 18 or newer.
+4. If Node.js/npm is missing, Node.js is older than 18, or neither command is usable, run the bundled [portable bootstrap script](scripts/bootstrap-portable-cli.ps1). It selects the latest compatible Node.js LTS ZIP for Windows x64/ARM64 from `nodejs.org`, verifies the official SHA-256 checksum, extracts it atomically under `%APPDATA%\multiagentor-cli\portable-runtime`, installs `multiagentor-cli@latest` into the same isolated cache, verifies `--help`, and returns JSON containing a reusable `invocation` path:
+
+   ```powershell
+   $runtime = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap-portable-cli.ps1 |
+       Select-Object -Last 1 |
+       ConvertFrom-Json
+   & $runtime.invocation --help
+   ```
+
+   Resolve the script path relative to this installed skill, not the user's current directory. Reuse the returned `invocation` for the entire workflow. Do not modify the machine-wide PATH or install system-wide Node.js. Network/sandbox approval may still be required by the active environment; request it when the tool reports that requirement. Report the official download source, selected version/platform, cache path, and checksum result without dumping npm logs.
+5. If compatible Node.js/npm is already available, prefer installing the current npm release for a reusable workflow:
 
    ```powershell
    npm.cmd install --global multiagentor-cli@latest
    multiagentor-cli --help
    ```
 
-5. If global installation is unavailable because of permissions or PATH, fall back to the non-interactive npm launcher and use the full prefix for every later command:
+6. If global installation is unavailable because of permissions or PATH, fall back to the non-interactive npm launcher and use the full prefix for every later command:
 
    ```powershell
    npx.cmd --yes multiagentor-cli@latest --help
@@ -40,9 +50,9 @@ Resolve one stable invocation and reuse it for the entire workflow.
 
    Invocation prefix: `npx.cmd --yes multiagentor-cli@latest`
 
-6. Do not mix a bundled executable, global command, and npx within one workflow unless diagnosing an installation problem. This prevents config/runtime/version drift.
-7. `--help`, auth, config, and remote CRUD do not download the browser. On the first npm-launched `run start` or `run execute`, allow the launcher to install the packaged RPA Agent, download the browser manifest and ZIP, verify size and SHA-256, extract atomically, and cache both under `%APPDATA%\multiagentor-cli\`. Do not interrupt this first-run preparation.
-8. Reuse the cached verified browser on later runs. Use `MULTIAGENTOR_BROWSER_EXECUTABLE` only when the user supplies a known compatible `ClonBrowserCore.exe`; do not substitute ordinary Chrome automatically.
+7. Do not mix a bundled executable, portable launcher, global command, and npx within one workflow unless diagnosing an installation problem. This prevents config/runtime/version drift.
+8. `--help`, auth, config, and remote CRUD do not download the browser. On the first npm-launched `run start` or `run execute`, allow the launcher to install the packaged RPA Agent, download the browser manifest and ZIP, verify size and SHA-256, extract atomically, and cache both under `%APPDATA%\multiagentor-cli\`. Do not interrupt this first-run preparation.
+9. Reuse the cached verified browser on later runs. Use `MULTIAGENTOR_BROWSER_EXECUTABLE` only when the user supplies a known compatible `ClonBrowserCore.exe`; do not substitute ordinary Chrome automatically.
 
 Installation is an expected prerequisite when the user asks to run an RPA task and no CLI is available. Report the chosen installation method and verified invocation without dumping npm logs.
 
@@ -157,7 +167,7 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 1. If no task ID is given, list tasks and offer up to three matches.
 2. Default to the cached payload when the user did not request a parameter override.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
-4. Use the resolved npm/global launcher, or the `.cmd` launcher from a supplied bundle, so the first local run can prepare the RPA Agent/browser runtime.
+4. Use the resolved bundled, portable, npm/global, or npx launcher consistently so the first local run can prepare the RPA Agent/browser runtime.
 5. Report the run ID and the next inspection command.
 
 ### Diagnose a failed run

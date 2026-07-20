@@ -22,7 +22,13 @@
     {
       "id": 4,
       "prompt": "这台 Windows 电脑还没有 multiagentor-cli，直接帮我跑一个 Amazon RPA 任务。",
-      "expected_output": "先检查是否有用户提供的可信项目 bundle 或全局命令；都没有时验证 Node.js 18+ 和 npm，优先通过 npm.cmd install --global multiagentor-cli@latest 安装并用 --help 验证。全局安装不可用时回退到 npx.cmd --yes multiagentor-cli@latest，并在后续命令中保持同一个调用前缀。说明浏览器只会在第一次 run start/run execute 时下载校验，不应把普通 Chrome 当成 ClonBrowserCore。",
+      "expected_output": "先检查是否有用户提供的可信项目 bundle 或全局命令；都没有时检查 Node.js 18+ 和 npm。若 Node/npm 不存在或版本过旧，自动运行技能内的 bootstrap-portable-cli.ps1，从 nodejs.org 下载与 Windows x64/ARM64 匹配的最新兼容 LTS ZIP，使用官方 SHASUMS256.txt 校验后原子解压到 APPDATA 隔离缓存，在同一缓存安装 CLI 并复用脚本返回的 invocation，不修改系统 PATH。若兼容 Node/npm 已存在，则优先全局 npm 安装，失败再回退到 npx，并保持同一调用前缀。说明浏览器只会在第一次 run start/run execute 时下载校验，不应把普通 Chrome 当成 ClonBrowserCore。",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "公司电脑没有管理员权限，也没有安装 Node.js 或 npm，但我想直接使用 MultiAgentor CLI。",
+      "expected_output": "无需要求用户先进行系统级安装；运行技能随附的 PowerShell portable bootstrap，自动识别 AMD64/ARM64，从 Node.js 官方源选择 Node 18+ 的最新兼容 LTS ZIP，验证 SHA-256，原子解压并把 Node 和 CLI 安装到用户 APPDATA 缓存。解析脚本最后一行 JSON，后续始终调用其 invocation 路径。若网络或沙箱需要批准，应按当前环境请求授权；不得绕过校验、修改机器级 PATH，或混用便携启动器与全局/npx 调用。",
       "files": []
     }
   ]
