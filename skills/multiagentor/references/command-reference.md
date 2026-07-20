@@ -55,6 +55,20 @@ multiagentor-cli config set executor-command <command...>
 
 Normal installed builds already contain defaults. OAuth opens the default browser, polls for approval, and saves the token.
 
+## Guided new-task sequence
+
+Use this order for a new automation:
+
+1. Authenticate with `auth oauth` and wait for success.
+2. List existing browser environments with `--json browser list`.
+3. Ask whether to use an existing environment or create one. If the list is empty or creation is chosen, inspect `--json browser systems`, then use `browser quick-create` and capture its browser ID.
+4. Discover and choose a script, then call `script execute-detail` and resolve execution parameters.
+5. Show the resolved browser, script, parameters, and task name; ask whether to create-and-run, create-only, or return to modify.
+6. Create the remote task with the chosen browser ID and script ID only after that choice.
+7. Parse the returned task ID and execute it with `run start` only when immediate execution was selected.
+
+Do not reorder browser and script selection for a new task. Existing-task runs may go directly to `run start` because the cached task payload already contains both bindings.
+
 ## Scripts
 
 ```powershell

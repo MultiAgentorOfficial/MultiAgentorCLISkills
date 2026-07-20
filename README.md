@@ -125,6 +125,8 @@ Run task task-123 once with custom parameters, without changing its saved defaul
 
 Codex should discover available choices first. Before task creation, it will show the selected script's configurable parameters and ask whether to use the defaults or customize them.
 
+For a new automation, the guided sequence is: **sign in → choose or create a browser environment → choose a script and its parameters → create a task → run the task**. If the account has no browser environments, Codex will inspect the supported systems and guide you through creating one before script selection.
+
 ## Update or uninstall
 
 To update an installation made by `$skill-installer`, back up or remove the existing `multiagentor` skill directory and install it again from the GitHub URL. The installer intentionally stops when the destination already exists.

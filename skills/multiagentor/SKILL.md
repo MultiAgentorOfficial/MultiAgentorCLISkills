@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, script discovery, browser environment creation, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a script/browser/task, or reports a CLI/run failure. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs.
+description: "Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, browser environment selection or creation, script discovery, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations, guide the user in this order: authenticate, choose or create a browser environment, choose a script and its parameters, create a task, then run it. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs."
 ---
 
 # MultiAgentor
@@ -12,9 +12,11 @@ Turn the user's goal into a valid MultiAgentor CLI workflow. Reduce cognitive lo
 1. Restate the intended outcome in one short sentence.
 2. Bootstrap the CLI before API discovery. Prefer the published npm package when no trusted project bundle is already in scope; follow **Install or select the CLI** below.
 3. Run the selected invocation with `--help` and treat live help as authoritative.
-4. Use read-only discovery commands before asking the user for IDs or supported values.
-5. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
-6. Ask only about missing, ambiguous, or consequential values, except that task creation always includes an explicit user choice about the selected script's execution parameters. Continue automatically after the answer when the requested action authorizes it.
+4. Authenticate before protected discovery. Run `auth oauth` when login is requested, no usable token exists, or a discovery command reports an authentication failure; wait for successful authorization before continuing.
+5. For a new automation, preserve this order: **login → choose/create browser environment → choose script and execution parameters → create task → run task**. Do not select the script before resolving the browser environment.
+6. Use read-only discovery commands before asking the user for IDs or supported values.
+7. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
+8. Ask only about missing, ambiguous, or consequential values, except that browser mode selection and task execution parameters are explicit user choices for every new task. Continue automatically after the answer when the requested action authorizes it.
 
 Read [references/command-reference.md](references/command-reference.md) when assembling a command or diagnosing behavior.
 
@@ -63,6 +65,7 @@ Map natural-language requests to these flows:
 | User goal | Flow |
 | --- | --- |
 | First use, login, authorization | `auth oauth` |
+| Create and run a new automation | login → browser choice → script choice → task creation → `run start` |
 | Find or choose automation capability | script discovery |
 | Create or choose a browser environment | browser discovery / `quick-create` |
 | Create a reusable automation task | task creation |
@@ -95,6 +98,34 @@ Use commands that do not mutate state to obtain real choices:
 - Run candidates/detail: `multiagentor-cli --json run list ...` and `run get --run-id <id> --full`
 
 Do not invent a candidate when discovery fails. Explain the failure briefly, then ask for the missing value or propose the smallest diagnostic command.
+
+### Preserve guided choice points
+
+For a new task, use this interaction loop at every material decision: **discover → summarize → recommend → ask → act → report**. Do not collapse the whole workflow into an uninterrupted series of mutations merely because defaults exist.
+
+Always give the user a correction or selection opportunity at these checkpoints:
+
+1. After login: use an existing browser environment or create a new one.
+2. Browser resolution: choose the existing browser, or choose the name/OS/version for creation.
+3. Script resolution: choose from at most three ranked real scripts.
+4. Script parameters: use defaults, customize values, or view explanations.
+5. Final task summary: create and run now, create without running, or return to modify the browser/script/parameters.
+
+Put the recommended option first and explain its effect in one sentence. Preserve exact IDs but pair them with human-readable names. Do not ask for values that discovery can provide, repeat a decision the user already made explicitly, or add confirmation to read-only commands. Destructive actions still follow the stricter confirmation rules below.
+
+### Choose a browser environment before scripts
+
+For every new task, resolve the browser immediately after authentication and before script discovery:
+
+1. Run `--json browser list` to discover existing environments.
+2. If one or more environments exist, explicitly offer:
+   1. 使用已有浏览器环境（推荐 when a suitable match exists）— show at most three ranked environments with exact IDs.
+   2. 创建新的浏览器环境 — inspect `--json browser systems`, then offer valid OS/version choices.
+3. If no environments exist, state that clearly, run `--json browser systems`, and guide the user to create one with `browser quick-create`. Do not ask the user to provide a browser ID that does not exist, and do not proceed to script selection until creation succeeds.
+4. Derive a short browser name from the target/OS when naming is unimportant; ask only when the user wants a specific name. `quick-create` changes remote state, so show the chosen name, OS, and version immediately before executing it unless the user's request already authorized creation.
+5. Parse the selected or newly created browser ID and retain it for task creation. Never invent an ID.
+
+If the user supplied a browser ID, confirm it appears in discovery results and treat the browser step as resolved. Running an existing task does not require this choice because its cached payload already identifies the browser and script.
 
 ### Rank candidates
 
@@ -151,16 +182,18 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 
 ### Create and optionally run a task
 
-1. Check authentication/config if the request or error suggests it is needed.
-2. Discover scripts; use the user's business terms as `--name`, `--description`, or `--category` filters.
-3. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
-4. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. When custom values are chosen, resolve them from the returned metadata, merge them with the defaults that must be preserved, write the complete context to a UTF-8 JSON file, validate it, and use `--script-context-file` before continuing.
-5. Discover browser environments. If none fit, inspect supported systems and offer `browser quick-create` choices.
-6. Derive a short task name from the chosen script and target; ask only if naming matters to the user.
-7. Use task type `local` unless live help or the user requires another supported type.
-8. Show a compact summary: script, browser, task name, chosen execution parameters/context mode, and whether execution will start.
-9. Creating a remote task changes state. If the user only asked for instructions or has not authorized creation, show the command and ask before running it. If they explicitly asked to create/run it, proceed after the execution-parameter choice is complete.
-10. Parse the returned task ID rather than asking the user to copy it manually, then run when authorized.
+1. Verify the CLI invocation, then authenticate with `auth oauth` when needed. Do not continue protected discovery until login succeeds.
+2. Run `--json browser list` and explicitly ask whether to use an existing environment or create a new one when existing environments are available.
+3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, execute `browser quick-create`, and parse the new browser ID.
+4. Discover scripts only after the browser ID is resolved; use the user's business terms as `--name`, `--description`, or `--category` filters.
+5. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
+6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. When custom values are chosen, resolve them from the returned metadata, merge them with the defaults that must be preserved, write the complete context to a UTF-8 JSON file, validate it, and use `--script-context-file` before continuing.
+7. Derive a short task name from the chosen script and target; ask only if naming matters to the user.
+8. Use task type `local` unless live help or the user requires another supported type.
+9. Show a compact summary: browser, script, task name, chosen execution parameters/context mode, and proposed execution behavior.
+10. Offer a final choice: 创建并立即运行（recommended when the user asked to run）、仅创建任务、返回修改选择. This is the correction checkpoint before task creation; do not create until it is resolved.
+11. Create the task when chosen and parse the returned task ID rather than asking the user to copy it manually.
+12. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution, then report the run ID and next status/log command. If the user chose create-only, report the task ID and the exact later run command.
 
 ### Run an existing task
 
@@ -213,9 +246,10 @@ Show the exact target ID/value and consequence in the confirmation. Never print 
 
 When waiting for a user choice, keep the response short:
 
-1. One sentence stating what was discovered.
-2. A 2-3 option choice set with the recommendation first.
-3. One concise question.
+1. One sentence stating the current workflow stage and what was discovered.
+2. A 2-3 option choice set with the recommendation first and the effect of each option.
+3. Exact names/IDs or parameter values needed to make the decision concrete.
+4. One concise question, then pause for the answer before performing the selected mutation.
 
 When ready to act or hand off, provide:
 
