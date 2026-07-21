@@ -98,7 +98,7 @@ npx.cmd --yes multiagentor-cli@latest --help
 
 If Node.js or npm is unavailable, the skill automatically runs its portable bootstrap. It downloads the matching Windows x64/ARM64 Node.js LTS ZIP from the official Node.js distribution, verifies SHA-256, and installs Node.js plus the CLI under `%APPDATA%\multiagentor-cli\portable-runtime`. It does not require an administrator account, change the system PATH, or install Node.js machine-wide.
 
-The first npm-launched `run start` or `run execute` may download and verify the packaged RPA Agent and compatible browser runtime. They are cached under `%APPDATA%\multiagentor-cli\`; regular help, authentication, configuration, and remote CRUD commands do not trigger that download.
+With CLI 0.3.2, npm installation and local runtime readiness are separate stages. The npm package already contains the RPA Agent but not the browser. On the first correctly npm-launched `run start` or `run execute`, the JavaScript launcher installs/verifies the packaged Agent, fetches the browser manifest, downloads and verifies the browser ZIP when needed, extracts it atomically, confirms `ClonBrowserCore.exe`, and injects both runtime paths before starting the task. If any preparation step fails, task execution does not begin. The verified runtime is cached under `%APPDATA%\multiagentor-cli\`; help, authentication, configuration, and remote CRUD commands do not trigger browser preparation. Never run the package's `dist\multiagentor-cli.exe` directly for a local task because that bypasses this readiness gate.
 
 ## Use the skill
 

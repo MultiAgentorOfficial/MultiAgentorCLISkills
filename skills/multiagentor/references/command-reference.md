@@ -29,7 +29,29 @@ $runtime = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-
 
 The script downloads the newest compatible Node.js LTS ZIP for Windows x64 or ARM64 from `nodejs.org`, checks it against the release's official `SHASUMS256.txt`, extracts it under `%APPDATA%\multiagentor-cli\portable-runtime`, installs the CLI in that isolated cache, and creates `multiagentor-cli-portable.cmd`. It does not modify the system PATH or install Node.js machine-wide. Reuse `$runtime.invocation` for all later commands in the workflow.
 
-The npm package includes the Windows x64 Go CLI and RPA Agent, but not the browser. The first npm-launched `run start` or `run execute` downloads and verifies the configured browser runtime, then caches the Agent and browser under `%APPDATA%\multiagentor-cli\`. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
+The published npm tarball contains `bin/multiagentor-cli.js`, `bin/runtime-manager.js`, `dist/multiagentor-cli.exe`, and the packaged RPA Agent, but not the browser. npm-generated commands route through `bin/multiagentor-cli.js`. The first npm-launched `run start` or `run execute` installs/verifies the Agent, downloads and verifies the configured browser runtime, sets `MULTIAGENTOR_AGENT_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and then starts the Go executable. It caches the Agent and browser under `%APPDATA%\multiagentor-cli\`. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
+
+Never execute `node_modules\multiagentor-cli\dist\multiagentor-cli.exe` directly for a local run. A raw EXE can still create or inspect remote tasks, but it bypasses the JavaScript runtime manager and fails on a clean machine when the RPA Agent needs `ClonBrowserCore.exe`. Keep one of these launch paths intact:
+
+```text
+global npm shim: multiagentor-cli.cmd -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
+npx:             npx multiagentor-cli -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
+portable:        multiagentor-cli-portable.cmd -> npm shim -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
+```
+
+An extracted full Windows bundle is a different artifact: verify that its root `multiagentor-cli.cmd` sets the bundled Agent/browser paths and use that root launcher. Do not apply npm download expectations to a full bundle, and do not treat an extracted npm `.tgz` as a full bundle.
+
+### 0.3.2 readiness sequence
+
+`npm install` installs the command but does not download the browser. For local execution, the 0.3.2 launcher blocks task startup in this order:
+
+1. Check the npm package's Agent executable and `agent-manifest.json`.
+2. Install/reuse the versioned Agent under `%APPDATA%\multiagentor-cli\runtime\`.
+3. Use an existing `MULTIAGENTOR_BROWSER_EXECUTABLE` only when that file exists; otherwise fetch and validate the HTTPS browser manifest.
+4. Reuse a valid cache or download the versioned browser ZIP, check declared size and SHA-256, extract atomically, confirm the manifest-declared executable, and update `browsers\current.json`.
+5. Set both runtime environment variables and only then spawn `dist\multiagentor-cli.exe` with the original arguments.
+
+If steps 1-4 fail, the launcher exits nonzero before spawning the Go CLI. Treat this as runtime preparation failure: repair or retry the same task through the same launcher, never bypass the gate. Version 0.3.2 exposes no separate public preparation command, so do not invent a dummy run or call internal JavaScript APIs directly merely to warm the cache.
 
 ## Global flags
 

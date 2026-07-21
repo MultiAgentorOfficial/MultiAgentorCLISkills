@@ -24,7 +24,10 @@ Read [references/command-reference.md](references/command-reference.md) when ass
 
 Resolve one stable invocation and reuse it for the entire workflow.
 
-1. If the user supplied a project bundle containing `multiagentor-cli.cmd`, use that launcher, especially for local runs. Do not download a duplicate CLI merely because the command is not global.
+1. Classify a user-supplied artifact before choosing an entry point:
+   - An npm installation or extracted npm `.tgz` contains `bin\multiagentor-cli.js` and `dist\multiagentor-cli.exe`. Invoke only the npm-generated `multiagentor-cli.cmd`, `npx`, or the skill-generated portable launcher. Never invoke `dist\multiagentor-cli.exe` directly: doing so bypasses browser preparation and omits `MULTIAGENTOR_BROWSER_EXECUTABLE` on a clean machine. If only a `.tgz` was supplied, install it with npm instead of treating `dist\multiagentor-cli.exe` as standalone.
+   - A full Windows bundle contains a root `multiagentor-cli.cmd`, `runtime\server-rpa-agent.exe`, and `browsers\...\ClonBrowserCore.exe`. Verify those paths and use the root `.cmd`; it supplies the bundled runtime paths and does not need npm to download a browser.
+   Do not download a duplicate CLI merely because a valid launcher is not global.
 2. Otherwise test `Get-Command multiagentor-cli -ErrorAction SilentlyContinue`.
 3. If the command is absent, check `node --version` and `npm --version`; require Node.js 18 or newer.
 4. If Node.js/npm is missing, Node.js is older than 18, or neither command is usable, run the bundled [portable bootstrap script](scripts/bootstrap-portable-cli.ps1). It selects the latest compatible Node.js LTS ZIP for Windows x64/ARM64 from `nodejs.org`, verifies the official SHA-256 checksum, extracts it atomically under `%APPDATA%\multiagentor-cli\portable-runtime`, installs `multiagentor-cli@latest` into the same isolated cache, verifies `--help`, and returns JSON containing a reusable `invocation` path:
@@ -52,11 +55,23 @@ Resolve one stable invocation and reuse it for the entire workflow.
 
    Invocation prefix: `npx.cmd --yes multiagentor-cli@latest`
 
-7. Do not mix a bundled executable, portable launcher, global command, and npx within one workflow unless diagnosing an installation problem. This prevents config/runtime/version drift.
-8. `--help`, auth, config, and remote CRUD do not download the browser. On the first npm-launched `run start` or `run execute`, allow the launcher to install the packaged RPA Agent, download the browser manifest and ZIP, verify size and SHA-256, extract atomically, and cache both under `%APPDATA%\multiagentor-cli\`. Do not interrupt this first-run preparation.
+7. Do not mix a full-bundle launcher, portable launcher, global npm shim, npx, or a package-internal executable within one workflow unless diagnosing an installation problem. Never shorten a resolved npm/portable invocation to the Go executable path. This prevents both runtime bypass and config/version drift.
+8. `--help`, auth, config, and remote CRUD do not download the browser. On the first npm-launched `run start` or `run execute`, allow the JavaScript launcher to install the packaged RPA Agent, download the browser manifest and ZIP, verify size and SHA-256, extract atomically, set both `MULTIAGENTOR_AGENT_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and only then start the Go CLI. Do not interrupt this first-run preparation.
 9. Reuse the cached verified browser on later runs. Use `MULTIAGENTOR_BROWSER_EXECUTABLE` only when the user supplies a known compatible `ClonBrowserCore.exe`; do not substitute ordinary Chrome automatically.
 
 Installation is an expected prerequisite when the user asks to run an RPA task and no CLI is available. Report the chosen installation method and verified invocation without dumping npm logs.
+
+### Enforce the 0.3.2 runtime-readiness gate
+
+Treat npm installation and local runtime readiness as separate states. `npm install` alone is not proof that a task can run. For every npm/portable `run start` or `run execute`, preserve the 0.3.2 JavaScript launcher as a blocking readiness gate before the Go CLI:
+
+1. Confirm Node.js 18+, the selected npm/portable launcher, `bin\multiagentor-cli.js`, `dist\multiagentor-cli.exe`, the packaged `server-rpa-agent.exe`, and `agent-manifest.json` exist. If the installed npm package is incomplete, repair/reinstall it before attempting the task.
+2. Let the launcher install the packaged Agent into its versioned `%APPDATA%\multiagentor-cli\runtime\` directory and validate it using the packaged manifest and declared size.
+3. Let it resolve `MULTIAGENTOR_BROWSER_EXECUTABLE`: honor a user-supplied compatible executable only if the path exists; otherwise fetch and validate the configured HTTPS browser manifest, download the versioned ZIP when no valid cache exists, verify declared size and SHA-256, extract atomically, confirm the declared `ClonBrowserCore.exe` exists, and update the cache pointer.
+4. Require both resolved Agent and browser paths. The launcher must set `MULTIAGENTOR_AGENT_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE` before it spawns the Go CLI. Do not manually start the Go CLI while preparation is pending.
+5. If any readiness step fails, stop before task execution, report the failed preparation stage, and offer retry/repair. Do not describe the task as running, do not create a replacement task, and do not fall back to the raw EXE.
+
+There is no separate public runtime-prepare command in 0.3.2. The readiness gate is the blocking prefix of the first correctly launched `run start` or `run execute`; wait through it and distinguish its preparation messages from task progress. Later runs may reuse a valid cached browser, including the documented fallback when the manifest endpoint is temporarily unavailable.
 
 ## Intent routing
 
@@ -212,8 +227,9 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 1. If no task ID is given, list tasks and offer up to three matches.
 2. Default to the cached payload when the user did not request a parameter override.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
-4. Use the resolved bundled, portable, npm/global, or npx launcher consistently so the first local run can prepare the RPA Agent/browser runtime.
-5. Report the run ID and the next inspection command.
+4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target `dist\multiagentor-cli.exe` or another raw Go executable. Apply the **0.3.2 runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing the Agent/browser and injecting both paths before the Go CLI may execute the task.
+5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, continue waiting for the actual task result.
+6. Report the run ID and the next inspection command.
 
 ### Diagnose a failed run
 
@@ -226,8 +242,10 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
    - invalid task envelope/context
    - RPA Agent process failure
    - target website/script behavior
-5. Redact tokens, cookies, authorization headers, passwords, and sensitive script input in any explanation.
-6. Do not rerun automatically if the run could repeat external side effects. Offer a corrected rerun choice first.
+5. For a browser-executable failure at 0% on a clean machine, inspect launcher provenance before blaming the download. An npm package with `bin\multiagentor-cli.js` must be reached through its npm shim/npx/portable wrapper; a full bundle must be reached through its root `.cmd`. If a raw EXE was used, preserve the existing task ID, correct the launcher, and do not create a replacement task.
+6. Do not claim that a full bundle will download a browser on the next launch, and do not claim that an npm `.tgz` already contains a browser. State which artifact type was actually verified.
+7. Redact tokens, cookies, authorization headers, passwords, and sensitive script input in any explanation.
+8. Do not rerun automatically if the run could repeat external side effects. Offer a corrected rerun choice first.
 
 ## Confirmation and safety
 

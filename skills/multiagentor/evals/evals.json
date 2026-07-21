@@ -54,6 +54,12 @@
       "prompt": "我的脚本里找不到 Amazon 采集脚本，继续帮我找并创建任务。",
       "expected_output": "先确认 --json script my 没有合适结果，然后使用相同 name/description/category 条件自动调用 --json script list 搜索市场，说明已从个人脚本回退到市场。展示最多三个真实市场候选并允许用户选择；选中后直接调用 execute-detail 并继续参数与任务流程，不强制再次出现在 script my。只有服务端实际拒绝时才报告权限或可用性问题。",
       "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "On a clean Windows machine, task 2879395025085865986 was created but its first run failed at 0% because ClonBrowserCore.exe was not found. I extracted the npm package and found dist\\multiagentor-cli.exe. Fix the launch and rerun it.",
+      "expected_output": "Classify the artifact as an npm package by locating bin/multiagentor-cli.js and do not execute dist/multiagentor-cli.exe directly. Treat npm installation and runtime readiness as separate states. Resolve and retain the npm-generated .cmd, npx prefix, or skill-generated portable launcher, verify the installed CLI/Agent package files, and require the 0.3.2 launcher to finish its blocking readiness sequence: install/reuse the packaged Agent, fetch and validate the browser manifest, download and verify the browser ZIP when needed, atomically extract it, confirm ClonBrowserCore.exe, and inject MULTIAGENTOR_AGENT_COMMAND plus MULTIAGENTOR_BROWSER_EXECUTABLE before the Go CLI starts. Stop before task execution if preparation fails. Preserve the existing task ID instead of creating another task, and ask before rerunning when external side effects may be repeated. Do not describe an npm tarball as already containing the browser or confuse it with a full Windows bundle.",
+      "files": []
     }
   ]
 }

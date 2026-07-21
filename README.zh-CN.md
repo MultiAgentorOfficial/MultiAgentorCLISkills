@@ -98,7 +98,7 @@ npx.cmd --yes multiagentor-cli@latest --help
 
 如果没有 Node.js 或 npm，技能会自动运行便携环境引导脚本：从 Node.js 官方分发源下载匹配 Windows x64/ARM64 的 LTS ZIP，完成 SHA-256 校验后，将 Node.js 和 CLI 安装到 `%APPDATA%\multiagentor-cli\portable-runtime`。整个过程无需管理员权限，不修改系统 PATH，也不会在系统中全局安装 Node.js。
 
-首次通过 npm 启动 `run start` 或 `run execute` 时，CLI 可能会下载并校验配套的 RPA Agent 和兼容浏览器运行时，并缓存到 `%APPDATA%\multiagentor-cli\`。帮助、登录、配置及远程增删改查命令不会触发浏览器下载。
+在 CLI 0.3.2 中，npm 安装完成和本地运行环境就绪是两个阶段。npm 包已经包含 RPA Agent，但不包含浏览器。首次通过正确的 npm 启动器执行 `run start` 或 `run execute` 时，JavaScript 启动器会先安装并校验随包 Agent、获取浏览器清单、按需下载并校验浏览器 ZIP、原子解压、确认 `ClonBrowserCore.exe` 存在，并注入两个运行时路径；所有准备步骤成功后才会真正启动任务。任一步失败都会停止在准备阶段。验证后的运行时会缓存到 `%APPDATA%\multiagentor-cli\`；帮助、登录、配置及远程增删改查命令不会触发浏览器准备。执行本地任务时不要直接运行 npm 包内的 `dist\multiagentor-cli.exe`，否则会绕过这道就绪检查。
 
 ## 使用示例
 
