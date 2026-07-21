@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "我想跑一个亚马逊商品采集任务，但我不知道脚本 ID、浏览器 ID，也不知道脚本需要哪些参数。帮我操作。",
-      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。基于真实结果推荐不超过三个脚本；选择脚本 ID 后必须调用 execute-detail，展示 scriptContext 中每个可填写参数及默认值/说明，明确询问使用默认参数、自定义填写还是先看说明。自定义时应保留完整 options/vars，生成并校验 UTF-8 JSON 文件，再优先通过 --script-context-file 创建任务。创建前展示浏览器、脚本、参数和任务名摘要，并询问创建后立即运行、仅创建或返回修改；按选择创建并解析 task ID，仅在选择立即运行时用 run start。不得先尝试容易被 Windows PowerShell 破坏引号的内联 JSON。",
+      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。创建任务时先用 0.3.2 的 --json script my 查找个人脚本；没有合适结果时自动用相同筛选条件回退到 --json script list 搜索完整市场，并允许用户直接选择市场脚本，不强制它同时出现在 script my。基于真实结果推荐不超过三个脚本；选择脚本 ID 后必须调用 execute-detail，展示 scriptContext 中每个可填写参数及默认值/说明，明确询问使用默认参数、自定义填写还是先看说明。自定义时应保留完整 options/vars，生成并校验 UTF-8 JSON 文件，再优先通过 --script-context-file 创建任务。创建前展示浏览器、脚本、参数和任务名摘要，并询问创建后立即运行、仅创建或返回修改；按选择创建并解析 task ID，仅在选择立即运行时用 run start。不得先尝试容易被 Windows PowerShell 破坏引号的内联 JSON。",
       "files": []
     },
     {
@@ -41,6 +41,18 @@
       "id": 7,
       "prompt": "登录成功了，但我的账号还没有任何浏览器环境。帮我创建并跑一个采集任务。",
       "expected_output": "先用 --json browser list 确认结果为空并明确告知用户；不得要求一个不存在的 browser ID，也不得先选择脚本。继续调用 --json browser systems，基于真实 OS/version 返回值提供不超过三个创建选项，确认名称、系统和版本后执行 browser quick-create 并解析新 browser ID。然后依次选择脚本、调用 execute-detail、确认参数；创建前展示摘要并提供‘创建并立即运行、仅创建、返回修改’选择，再按用户选择创建和运行。",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "帮我看看脚本市场里有哪些 Amazon 采集脚本，暂时不要创建任务。",
+      "expected_output": "使用 0.3.2 新增的全局 JSON 调用 --json script list，并通过 --name、--description 或 --category 搜索完整脚本市场；用户当前只要求浏览，因此不要创建任务。如果用户随后要执行某个市场脚本，允许直接选择该脚本并进入 execute-detail、参数选择和任务创建，不要求它同时出现在 script my；只有服务端实际返回权限或可用性错误时才说明失败并推荐其他候选。",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "我的脚本里找不到 Amazon 采集脚本，继续帮我找并创建任务。",
+      "expected_output": "先确认 --json script my 没有合适结果，然后使用相同 name/description/category 条件自动调用 --json script list 搜索市场，说明已从个人脚本回退到市场。展示最多三个真实市场候选并允许用户选择；选中后直接调用 execute-detail 并继续参数与任务流程，不强制再次出现在 script my。只有服务端实际拒绝时才报告权限或可用性问题。",
       "files": []
     }
   ]

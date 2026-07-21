@@ -11,6 +11,7 @@ This repository currently contains `multiagentor`, a reusable Codex skill that t
 - Installs or selects one stable `multiagentor-cli` invocation.
 - Guides OAuth login and configuration checks.
 - Discovers real script, browser, task, and run candidates before asking for IDs.
+- Searches personal scripts first (`script my`) and falls back to the full market (`script list`) when needed.
 - Reads a script's parameter metadata before creating a task.
 - Uses PowerShell-safe JSON files for custom execution parameters.
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.

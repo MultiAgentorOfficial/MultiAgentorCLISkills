@@ -1,6 +1,6 @@
 # MultiAgentor CLI command reference
 
-This reference reflects `multiagentor-cli.exe` version 0.3.1 help in the bundled project. Run the relevant `--help` command and prefer live output if versions differ.
+This reference reflects the published `multiagentor-cli` version 0.3.2 live help. Run the relevant `--help` command and prefer live output if versions differ.
 
 ## Install from npm
 
@@ -72,12 +72,15 @@ Do not reorder browser and script selection for a new task. Existing-task runs m
 ## Scripts
 
 ```powershell
+multiagentor-cli --json script list [--name <text>] [--description <text>] [--category <text>] [--page 1] [--size 10]
 multiagentor-cli --json script categories
 multiagentor-cli --json script my [--name <text>] [--description <text>] [--category <text>] [--page 1] [--size 10]
 multiagentor-cli script execute-detail --id <scriptId>
 ```
 
-`execute-detail` returns metadata, README, and `scriptContext` defaults. Use it before constructing overrides.
+`script list` calls `/v1/script-market` and searches the full market. `script my` calls `/v1/script-market/my` and lists scripts available to the current user. Both list commands support fuzzy name, description, and category filters; place global `--json` before `script` to receive the original JSON page response.
+
+For task creation, search `script my` first and fall back to `script list` when there is no suitable personal result. A selected market script may proceed directly to `execute-detail` and task creation; do not require it to also appear in `script my`. If the server later rejects access, treat that response as authoritative and offer another personal or market candidate. `execute-detail` returns metadata, README, and `scriptContext` defaults; call it for the selected script before constructing overrides.
 
 ## Browser environments
 

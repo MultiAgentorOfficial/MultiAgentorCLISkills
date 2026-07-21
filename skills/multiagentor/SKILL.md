@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, browser environment selection or creation, script discovery, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations, guide the user in this order: authenticate, choose or create a browser environment, choose a script and its parameters, create a task, then run it. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs."
+description: "Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, browser environment selection or creation, personal and market script discovery, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to browse or run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations, guide the user in this order: authenticate, choose or create a browser environment, search personal scripts with a market fallback, choose script parameters, create a task, then run it. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs."
 ---
 
 # MultiAgentor
@@ -66,7 +66,8 @@ Map natural-language requests to these flows:
 | --- | --- |
 | First use, login, authorization | `auth oauth` |
 | Create and run a new automation | login → browser choice → script choice → task creation → `run start` |
-| Find or choose automation capability | script discovery |
+| Browse the full script market | `script list` |
+| Choose a script for task execution | `script my`, then `script list` when no suitable personal result exists |
 | Create or choose a browser environment | browser discovery / `quick-create` |
 | Create a reusable automation task | task creation |
 | Run an existing task | `run start` |
@@ -89,7 +90,8 @@ Use commands that do not mutate state to obtain real choices:
 
 - Effective setup: `multiagentor-cli config show`
 - Script categories: `multiagentor-cli --json script categories`
-- Script candidates: `multiagentor-cli --json script my ...`
+- Personal script candidates: `multiagentor-cli --json script my ...`
+- Full script-market fallback: `multiagentor-cli --json script list ...`
 - Script parameters and defaults: `multiagentor-cli script execute-detail --id <id>`
 - Supported systems: `multiagentor-cli --json browser systems`
 - Browser candidates: `multiagentor-cli --json browser list ...`
@@ -98,6 +100,16 @@ Use commands that do not mutate state to obtain real choices:
 - Run candidates/detail: `multiagentor-cli --json run list ...` and `run get --run-id <id> --full`
 
 Do not invent a candidate when discovery fails. Explain the failure briefly, then ask for the missing value or propose the smallest diagnostic command.
+
+### Search personal scripts, then fall back to the market
+
+Treat the 0.3.2 script commands as different scopes:
+
+- Use `--json script my` first when selecting a script for task creation; it searches scripts associated with the authenticated user.
+- If `script my` returns no suitable match, automatically repeat the search with `--json script list` against the full market. Tell the user that personal results were empty before presenting market candidates.
+- Use `--json script list` directly when the user explicitly asks to browse the whole market.
+- Use `--json script categories` to discover valid category labels for either search.
+- Allow the user to select a market result and continue to `execute-detail` and task creation; do not require it to also appear in `script my`. Treat an actual permission or availability error from the server as authoritative, then explain the failure and offer other personal or market candidates.
 
 ### Preserve guided choice points
 
@@ -185,7 +197,7 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 1. Verify the CLI invocation, then authenticate with `auth oauth` when needed. Do not continue protected discovery until login succeeds.
 2. Run `--json browser list` and explicitly ask whether to use an existing environment or create a new one when existing environments are available.
 3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, execute `browser quick-create`, and parse the new browser ID.
-4. Discover scripts only after the browser ID is resolved; use the user's business terms as `--name`, `--description`, or `--category` filters.
+4. Discover scripts only after the browser ID is resolved. Search `--json script my` first with the user's business terms as `--name`, `--description`, or `--category` filters; when it has no suitable result, search `--json script list` with the same filters and present market candidates. Do not require a selected market script to appear in both results.
 5. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
 6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. When custom values are chosen, resolve them from the returned metadata, merge them with the defaults that must be preserved, write the complete context to a UTF-8 JSON file, validate it, and use `--script-context-file` before continuing.
 7. Derive a short task name from the chosen script and target; ask only if naming matters to the user.
