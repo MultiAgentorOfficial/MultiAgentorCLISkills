@@ -61,9 +61,9 @@ Resolve one stable invocation and reuse it for the entire workflow.
 
 Installation is an expected prerequisite when the user asks to run an RPA task and no CLI is available. Report the chosen installation method and verified invocation without dumping npm logs.
 
-### Enforce the 0.3.2 runtime-readiness gate
+### Enforce the runtime-readiness gate
 
-Treat npm installation and local runtime readiness as separate states. `npm install` alone is not proof that a task can run. For every npm/portable `run start` or `run execute`, preserve the 0.3.2 JavaScript launcher as a blocking readiness gate before the Go CLI:
+Treat npm installation and local runtime readiness as separate states. `npm install` alone is not proof that a task can run. For every npm/portable `run start` or `run execute`, preserve the installed package's JavaScript launcher as a blocking readiness gate before the Go CLI:
 
 1. Confirm Node.js 18+, the selected npm/portable launcher, `bin\multiagentor-cli.js`, `dist\multiagentor-cli.exe`, the packaged `server-rpa-agent.exe`, and `agent-manifest.json` exist. If the installed npm package is incomplete, repair/reinstall it before attempting the task.
 2. Let the launcher install the packaged Agent into its versioned `%APPDATA%\multiagentor-cli\runtime\` directory and validate it using the packaged manifest and declared size.
@@ -71,7 +71,7 @@ Treat npm installation and local runtime readiness as separate states. `npm inst
 4. Require both resolved Agent and browser paths. The launcher must set `MULTIAGENTOR_AGENT_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE` before it spawns the Go CLI. Do not manually start the Go CLI while preparation is pending.
 5. If any readiness step fails, stop before task execution, report the failed preparation stage, and offer retry/repair. Do not describe the task as running, do not create a replacement task, and do not fall back to the raw EXE.
 
-There is no separate public runtime-prepare command in 0.3.2. The readiness gate is the blocking prefix of the first correctly launched `run start` or `run execute`; wait through it and distinguish its preparation messages from task progress. Later runs may reuse a valid cached browser, including the documented fallback when the manifest endpoint is temporarily unavailable.
+Check live help before assuming a separate runtime-preparation command exists. When none is exposed, treat the readiness gate as the blocking prefix of the first correctly launched `run start` or `run execute`; wait through it and distinguish its preparation messages from task progress. Later runs may reuse a valid cached browser according to the installed launcher's documented cache/fallback behavior.
 
 ## Intent routing
 
@@ -118,7 +118,7 @@ Do not invent a candidate when discovery fails. Explain the failure briefly, the
 
 ### Search personal scripts, then fall back to the market
 
-Treat the 0.3.2 script commands as different scopes:
+Treat the script commands exposed by current live help as different scopes:
 
 - Use `--json script my` first when selecting a script for task creation; it searches scripts associated with the authenticated user.
 - If `script my` returns no suitable match, automatically repeat the search with `--json script list` against the full market. Tell the user that personal results were empty before presenting market candidates.
@@ -227,7 +227,7 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 1. If no task ID is given, list tasks and offer up to three matches.
 2. Default to the cached payload when the user did not request a parameter override.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
-4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target `dist\multiagentor-cli.exe` or another raw Go executable. Apply the **0.3.2 runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing the Agent/browser and injecting both paths before the Go CLI may execute the task.
+4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target `dist\multiagentor-cli.exe` or another raw Go executable. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing the Agent/browser and injecting both paths before the Go CLI may execute the task.
 5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, continue waiting for the actual task result.
 6. Report the run ID and the next inspection command.
 

@@ -1,6 +1,6 @@
 # MultiAgentor CLI command reference
 
-This reference reflects the published `multiagentor-cli` version 0.3.2 live help. Run the relevant `--help` command and prefer live output if versions differ.
+This reference describes the currently supported command shape. Always run the relevant installed `multiagentor-cli --help` command first and treat live output as authoritative when capabilities differ.
 
 ## Install from npm
 
@@ -41,9 +41,9 @@ portable:        multiagentor-cli-portable.cmd -> npm shim -> bin\multiagentor-c
 
 An extracted full Windows bundle is a different artifact: verify that its root `multiagentor-cli.cmd` sets the bundled Agent/browser paths and use that root launcher. Do not apply npm download expectations to a full bundle, and do not treat an extracted npm `.tgz` as a full bundle.
 
-### 0.3.2 readiness sequence
+### Runtime-readiness sequence
 
-`npm install` installs the command but does not download the browser. For local execution, the 0.3.2 launcher blocks task startup in this order:
+`npm install` installs the command but does not necessarily download the browser. For local execution, the installed npm launcher must block task startup in this order when its package/runtime metadata requires these components:
 
 1. Check the npm package's Agent executable and `agent-manifest.json`.
 2. Install/reuse the versioned Agent under `%APPDATA%\multiagentor-cli\runtime\`.
@@ -51,7 +51,7 @@ An extracted full Windows bundle is a different artifact: verify that its root `
 4. Reuse a valid cache or download the versioned browser ZIP, check declared size and SHA-256, extract atomically, confirm the manifest-declared executable, and update `browsers\current.json`.
 5. Set both runtime environment variables and only then spawn `dist\multiagentor-cli.exe` with the original arguments.
 
-If steps 1-4 fail, the launcher exits nonzero before spawning the Go CLI. Treat this as runtime preparation failure: repair or retry the same task through the same launcher, never bypass the gate. Version 0.3.2 exposes no separate public preparation command, so do not invent a dummy run or call internal JavaScript APIs directly merely to warm the cache.
+If steps 1-4 fail, the launcher must exit nonzero before spawning the Go CLI. Treat this as runtime preparation failure: repair or retry the same task through the same launcher, never bypass the gate. Check live help for a public preparation command; when none exists, do not invent a dummy run or call internal JavaScript APIs directly merely to warm the cache.
 
 ## Global flags
 
