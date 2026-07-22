@@ -2,9 +2,9 @@
 
 简体中文 | [English](README.md)
 
-本项目提供用于在 Windows 上安装、使用和排查 [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) 的 Codex 技能。
+本项目提供可在 Codex 或 WorkBuddy 中使用的 Agent Skill，用于在 Windows 上安装、使用和排查 [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli)。
 
-仓库目前包含 `multiagentor`：它能把自然语言自动化需求转换为安全、可执行的 MultiAgentor CLI 工作流。用户不必记忆脚本 ID、浏览器 ID 或大量命令参数，Codex 会先发现真实候选项，再协助创建任务、运行 RPA、检查日志并定位故障。
+仓库目前包含 `multiagentor`：它能把自然语言自动化需求转换为安全、可执行的 MultiAgentor CLI 工作流。用户不必记忆脚本 ID、浏览器 ID 或大量命令参数，Codex 或 WorkBuddy 会先发现真实候选项，再协助创建任务、运行 RPA、检查日志并定位故障。
 
 ## 技能能力
 
@@ -17,7 +17,7 @@
 - 创建、运行、检查、取消和排查本地 RPA 运行。
 - 在删除数据或可能产生重复外部操作前请求确认。
 
-该技能为 Codex 提供操作规范，真正执行自动化的是 MultiAgentor CLI。安装技能时**不会**立即安装 CLI 或浏览器运行时。
+该技能为 Codex 或 WorkBuddy 提供操作规范，真正执行自动化的是 MultiAgentor CLI。安装技能时**不会**立即安装 CLI 或浏览器运行时。
 
 ## 仓库结构
 
@@ -37,7 +37,7 @@ skills/
 
 ## 环境要求
 
-- 支持 Skills 的 Codex。
+- 支持 Skills 的 Codex 或 WorkBuddy。
 - Windows 与 PowerShell（当前 CLI 工作流以此为准）。
 - 如果系统已有 Node.js/npm，需要 Node.js 18 或更高版本；如果没有，技能可自动准备隔离的便携运行环境。
 - MultiAgentor 账号，以及任务所需脚本和浏览器环境的访问权限。
@@ -78,6 +78,47 @@ Test-Path (Join-Path $destination 'SKILL.md')
 ```
 
 最后一条命令应返回 `True`。安装完成后请新建一个 Codex 任务。
+
+## 在 WorkBuddy 中安装
+
+### 方式一：让 WorkBuddy 从 GitHub 直接安装（推荐）
+
+在 WorkBuddy 任务中输入：
+
+```text
+请从下面的 GitHub 目录安装并启用 MultiAgentor Skill。安装前检查其中的 SKILL.md 和脚本：
+https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor
+```
+
+WorkBuddy 报告安装成功后，确认 `multiagentor` 已出现在已安装技能列表中，然后新建任务并输入：`使用 MultiAgentor 帮我登录。`
+
+### 方式二：上传本地技能包
+
+无法从 GitHub 直接安装时使用此备用方式。WorkBuddy 支持通过“**专家·技能·连接器 → 添加技能 → 上传技能**”导入本地技能包。请只打包 `skills/multiagentor` 目录，确保 ZIP 根目录直接包含 `SKILL.md`，不要上传整个仓库。
+
+使用 PowerShell 生成技能包：
+
+```powershell
+git clone https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills.git
+
+$skillSource = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor'
+$workBuddyPackage = Join-Path $PWD 'multiagentor-workbuddy.zip'
+
+if (Test-Path -LiteralPath $workBuddyPackage) {
+    throw "技能包已存在：$workBuddyPackage"
+}
+
+Compress-Archive -Path (Join-Path $skillSource '*') -DestinationPath $workBuddyPackage
+```
+
+上传技能包：
+
+1. 在 WorkBuddy 左侧边栏打开“专家·技能·连接器”。
+2. 选择“添加技能 → 上传技能”，上传 `multiagentor-workbuddy.zip`。
+3. 检查技能来源、脚本内容以及申请的文件、网络和命令执行权限，导入后启用该技能。
+4. 新建任务并要求 WorkBuddy 使用 MultiAgentor，例如：`使用 MultiAgentor 帮我登录。`
+
+无论使用哪种方式，启用前都应检查技能来源与申请权限。便携 CLI 引导和首次本地 RPA 运行可能需要授权执行 PowerShell、访问网络，并写入当前用户的 `%APPDATA%`。安装界面及权限说明以[官方 WorkBuddy 技能文档](https://cloud.tencent.com/document/product/1831/134432)为准。
 
 ## 安装 MultiAgentor CLI
 

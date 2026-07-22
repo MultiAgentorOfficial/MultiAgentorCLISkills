@@ -2,9 +2,9 @@
 
 [简体中文](README.zh-CN.md) | English
 
-Codex skills for installing, using, and troubleshooting [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) on Windows.
+Agent skills for installing, using, and troubleshooting [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) on Windows with Codex or WorkBuddy.
 
-This repository currently contains `multiagentor`, a reusable Codex skill that turns a natural-language automation request into a safe MultiAgentor CLI workflow. It can help discover scripts and browser environments, create and run tasks, inspect logs, and diagnose failures without requiring users to memorize IDs or command flags.
+This repository currently contains `multiagentor`, a reusable agent skill that turns a natural-language automation request into a safe MultiAgentor CLI workflow. It can help discover scripts and browser environments, create and run tasks, inspect logs, and diagnose failures without requiring users to memorize IDs or command flags.
 
 ## What the skill does
 
@@ -17,7 +17,7 @@ This repository currently contains `multiagentor`, a reusable Codex skill that t
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
 - Requests confirmation before destructive or potentially duplicative actions.
 
-The skill is guidance for Codex; the CLI performs the actual automation. Installing the skill does **not** install the CLI or browser runtime immediately.
+The skill guides Codex or WorkBuddy; the CLI performs the actual automation. Installing the skill does **not** install the CLI or browser runtime immediately.
 
 ## Repository structure
 
@@ -37,7 +37,7 @@ skills/
 
 ## Requirements
 
-- Codex with skill support.
+- Codex or WorkBuddy with skill support.
 - Windows and PowerShell for the documented CLI workflow.
 - Node.js 18 or newer and npm when already available. If they are missing, the skill can bootstrap an isolated portable runtime automatically.
 - A MultiAgentor account and access to the scripts/browser environments used by your task.
@@ -78,6 +78,47 @@ Test-Path (Join-Path $destination 'SKILL.md')
 ```
 
 The last command should return `True`. Start a new Codex task after installation.
+
+## Install in WorkBuddy
+
+### Option 1: Ask WorkBuddy to install directly from GitHub (recommended)
+
+Paste this into a WorkBuddy task:
+
+```text
+Install and enable the MultiAgentor skill from this GitHub directory. Review its SKILL.md and scripts before installation:
+https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills/tree/main/skills/multiagentor
+```
+
+After WorkBuddy reports success, confirm that `multiagentor` appears in the installed skills list, then start a new task and ask: `Use MultiAgentor to help me sign in.`
+
+### Option 2: Upload a local package
+
+Use this fallback when direct GitHub installation is unavailable. WorkBuddy supports importing a local skill package from **Experts · Skills · Connectors → Add Skill → Upload Skill**. Package only the `skills/multiagentor` directory so `SKILL.md` is at the ZIP root; do not upload the entire repository.
+
+Create the package with PowerShell:
+
+```powershell
+git clone https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills.git
+
+$skillSource = Join-Path $PWD 'MultiAgentorCLISkills\skills\multiagentor'
+$workBuddyPackage = Join-Path $PWD 'multiagentor-workbuddy.zip'
+
+if (Test-Path -LiteralPath $workBuddyPackage) {
+    throw "Package already exists: $workBuddyPackage"
+}
+
+Compress-Archive -Path (Join-Path $skillSource '*') -DestinationPath $workBuddyPackage
+```
+
+Upload it:
+
+1. Open **Experts · Skills · Connectors** in the WorkBuddy sidebar.
+2. Select **Add Skill → Upload Skill** and choose `multiagentor-workbuddy.zip`.
+3. Review the source, scripts, requested file/network/command permissions, and enable the skill after import.
+4. Start a new task and ask WorkBuddy to use MultiAgentor, for example: `Use MultiAgentor to help me sign in.`
+
+For either method, review the source and requested permissions before enabling the skill. The portable CLI bootstrap and first local RPA run may need permission to execute PowerShell, access the network, and write under the current user's `%APPDATA%`. See the [official WorkBuddy skill documentation](https://cloud.tencent.com/document/product/1831/134432) for the current installation and permission UI.
 
 ## Install the MultiAgentor CLI
 
