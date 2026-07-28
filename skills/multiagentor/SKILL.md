@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Install, guide, and operate MultiAgentor CLI on Windows through its npm package for login, browser environment selection or creation, personal and market script discovery, remote task CRUD, local task execution, logs, cancellation, and configuration. Use this skill whenever a user asks how to install or use multiagentor-cli, wants to browse or run an RPA automation even when the CLI is not installed yet, provides only a partial operation or parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations, guide the user in this order: authenticate, choose or create a browser environment, search personal scripts with a market fallback, choose script parameters, create a task, then run it. Bootstrap and verify the CLI first, proactively discover live candidates, infer safe defaults, and ask focused choice-based follow-up questions instead of making the user memorize commands, flags, or IDs."
+description: "Install, guide, and operate MultiAgentor CLI on Windows for login, browser selection or creation, personal and market script discovery, remote task CRUD, supervised local execution, logs, cancellation, and configuration. Use whenever a user asks to install or use multiagentor-cli, browse or run an RPA automation even when the CLI is absent, supplies partial parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations: authenticate, choose or create a browser, find a personal or market script, resolve parameters, create a task, then run and supervise it to a terminal state unless the user explicitly asks not to wait. Bootstrap and verify the CLI first, discover live candidates, infer safe defaults, and ask focused choice-based questions instead of requiring commands, flags, or IDs."
 ---
 
 # MultiAgentor
@@ -72,6 +72,23 @@ Treat npm installation and local runtime readiness as separate states. `npm inst
 5. If any readiness step fails, stop before task execution, report the failed preparation stage, and offer retry/repair. Do not describe the task as running, do not create a replacement task, and do not fall back to the raw EXE.
 
 Check live help before assuming a separate runtime-preparation command exists. When none is exposed, treat the readiness gate as the blocking prefix of the first correctly launched `run start` or `run execute`; wait through it and distinguish its preparation messages from task progress. Later runs may reuse a valid cached browser according to the installed launcher's documented cache/fallback behavior.
+
+### Supervise every started run
+
+Default to **start and wait**. A successful process launch, created task ID, created run ID, readiness completion, or first progress update is not task completion and does not authorize ending the agent session.
+
+1. Before starting, resolve the user's wait preference:
+   - If the user explicitly says “启动后不用等待”, “后台运行”, “只启动”, “不用等结果”, or an equivalent instruction, use **start without waiting**.
+   - Otherwise use **start and wait** automatically. Do not ask a redundant wait-choice question merely because the task may take a long time.
+2. Prefer the resolved launcher in the foreground when the host can keep the command open. Treat its exit as meaningful only after confirming the corresponding run state.
+3. If the host cannot safely hold one long-running tool call, use its supported background/monitor mechanism, keep the process hidden on Windows, and capture stdout/stderr. For `run start`, resolve the new run ID from command output or `--json run list --task-id <taskId>`, then poll `run get --run-id <runId> --full`. For `run execute`, which has no SQLite task/run record, supervise the process handle plus its captured output and direct-run log directory instead of calling `run get`. Keep the agent turn/session active while monitoring.
+4. Continue supervision until the current CLI reports a terminal run state. Do not assume exact status names without inspecting live output; states equivalent to success, failure, or cancellation are terminal, while queued, preparing, starting, or running states are not.
+5. If a tool call times out, disconnects, or returns before terminal state, immediately re-read a `run start` record with `run list`/`run get`, or re-check the `run execute` process and direct-run logs, then resume supervision. A tool timeout is not a run failure and not permission to end the session.
+6. Provide concise progress updates during a long run without flooding the user. Include the run ID, current state/progress, and any material stage change.
+7. At terminal state, report the final status and progress. On failure or cancellation, inspect lifecycle logs plus `stderr.log`/`agent.log` before explaining the outcome. On success, report the result/output paths exposed by `run get --full`.
+8. Only in **start without waiting** mode may the session end while the run is active. Report the task ID, run ID when available, last observed state, and exact status/log commands so the user can return later.
+
+Never convert start-and-wait into start-without-wait because of expected duration, host tool timeout, sparse output, or the fact that the RPA/browser process is visibly running.
 
 ## Intent routing
 
@@ -220,7 +237,7 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 9. Show a compact summary: browser, script, task name, chosen execution parameters/context mode, and proposed execution behavior.
 10. Offer a final choice: 创建并立即运行（recommended when the user asked to run）、仅创建任务、返回修改选择. This is the correction checkpoint before task creation; do not create until it is resolved.
 11. Create the task when chosen and parse the returned task ID rather than asking the user to copy it manually.
-12. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution, then report the run ID and next status/log command. If the user chose create-only, report the task ID and the exact later run command.
+12. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution. Apply **Supervise every started run**: remain in the session until terminal state unless the user explicitly selected start without waiting. If the user chose create-only, report the task ID and the exact later run command.
 
 ### Run an existing task
 
@@ -228,8 +245,8 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 2. Default to the cached payload when the user did not request a parameter override.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
 4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target `dist\multiagentor-cli.exe` or another raw Go executable. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing the Agent/browser and injecting both paths before the Go CLI may execute the task.
-5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, continue waiting for the actual task result.
-6. Report the run ID and the next inspection command.
+5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, apply **Supervise every started run** and continue until terminal state unless the user explicitly requested start without waiting.
+6. Report the run ID, final status, progress, and relevant result/log paths. In explicit start-without-wait mode, report the last observed state and the next inspection commands instead.
 
 ### Diagnose a failed run
 

@@ -60,6 +60,18 @@
       "prompt": "On a clean Windows machine, task 2879395025085865986 was created but its first run failed at 0% because ClonBrowserCore.exe was not found. I extracted the npm package and found dist\\multiagentor-cli.exe. Fix the launch and rerun it.",
       "expected_output": "Classify the artifact as an npm package by locating bin/multiagentor-cli.js and do not execute dist/multiagentor-cli.exe directly. Treat npm installation and runtime readiness as separate states. Resolve and retain the npm-generated .cmd, npx prefix, or skill-generated portable launcher, verify the installed CLI/Agent package files, and require the installed JavaScript launcher to finish its blocking readiness sequence according to current package metadata and live help: install/reuse the packaged Agent, fetch and validate the browser manifest, download and verify the browser ZIP when needed, atomically extract it, confirm ClonBrowserCore.exe, and inject MULTIAGENTOR_AGENT_COMMAND plus MULTIAGENTOR_BROWSER_EXECUTABLE before the Go CLI starts. Stop before task execution if preparation fails. Preserve the existing task ID instead of creating another task, and ask before rerunning when external side effects may be repeated. Do not describe an npm tarball as already containing the browser or confuse it with a full Windows bundle.",
       "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "帮我启动任务 task-123。",
+      "expected_output": "普通的“启动任务”默认表示启动并等待，不得因为已经拿到 run ID、浏览器已打开、进程正在运行、输出暂时稀疏或工具调用超时而结束会话。使用一致且经过运行时就绪门的启动器运行；前台可持续等待时等待命令并核对 run 状态，否则使用宿主支持的隐藏后台进程和轮询机制，通过 run list 解析 run ID、持续调用 run get --full，保持会话并定期报告进度，直到当前 CLI 返回成功、失败、取消或其他明确终态。终态后报告最终状态、进度和结果路径；失败或取消时读取生命周期及 stderr/agent 日志。",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "启动任务 task-123，启动后不用等待，我稍后自己看。",
+      "expected_output": "识别到用户明确选择了启动后不用等待，因此允许在任务仍活动时结束会话。仍需通过正确启动器完成运行时准备并确认任务已启动；报告 task ID、run ID（可获得时）、最后观察到的状态，以及稍后使用 run get --full 和 run logs 检查状态与日志的准确命令。不得把当前活动状态描述成成功终态。",
+      "files": []
     }
   ]
 }

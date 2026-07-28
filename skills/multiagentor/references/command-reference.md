@@ -144,6 +144,18 @@ multiagentor-cli run cancel --run-id <runId>
 
 `run start` normally uses the cached payload. A supplied context is fetched for that run only. `run execute` validates and preserves one UTF-8 JSON object, writes it under `%APPDATA%\multiagentor-cli\direct-runs\<runId>\`, and creates no remote task or SQLite task/run record.
 
+Starting a run is not completing a run. Unless the user explicitly requests background/start-only behavior, keep the agent session active until `run get --full` or the foreground launcher reports a terminal state. If foreground waiting is unsuitable for the host:
+
+1. Start the resolved launcher with the host's supported hidden background-process mechanism.
+2. Capture stdout/stderr and retain the process handle when available.
+3. For `run start`, resolve the run ID from output or the newest matching entry from `--json run list --task-id <taskId>`, then poll `run get --run-id <runId> --full`.
+4. For `run execute`, supervise the process handle, captured output, and `%APPDATA%\multiagentor-cli\direct-runs\<runId>\` logs because it creates no SQLite run record.
+5. Continue until the current CLI/process reports success, failure, cancellation, or another documented terminal state.
+6. Recover from tool timeout/disconnection by querying the run or process/log state again; do not interpret tool timeout as task completion or failure.
+7. Inspect logs at failure/cancellation and report output paths at success.
+
+Only an explicit user instruction such as “启动后不用等待” permits returning while the run remains active. In that mode, return the task/run IDs, last state, and commands for `run get` and `run logs`.
+
 Task-run files are normally under `%APPDATA%\multiagentor-cli\tasks\<taskId>\runs\<runId>\`:
 
 ```text
