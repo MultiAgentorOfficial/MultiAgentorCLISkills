@@ -85,8 +85,14 @@ Default to **start and wait**. A successful process launch, created task ID, cre
 4. Continue supervision until the current CLI reports a terminal run state. Do not assume exact status names without inspecting live output; states equivalent to success, failure, or cancellation are terminal, while queued, preparing, starting, or running states are not.
 5. If a tool call times out, disconnects, or returns before terminal state, immediately re-read a `run start` record with `run list`/`run get`, or re-check the `run execute` process and direct-run logs, then resume supervision. A tool timeout is not a run failure and not permission to end the session.
 6. Provide concise progress updates during a long run without flooding the user. Include the run ID, current state/progress, and any material stage change.
-7. At terminal state, report the final status and progress. On failure or cancellation, inspect lifecycle logs plus `stderr.log`/`agent.log` before explaining the outcome. On success, report the result/output paths exposed by `run get --full`.
-8. Only in **start without waiting** mode may the session end while the run is active. Report the task ID, run ID when available, last observed state, and exact status/log commands so the user can return later.
+7. At terminal state, perform **result collection** before ending the session:
+   - For `run start`, call `run get --run-id <runId> --full` and inspect its complete output/result fields and every result artifact path it exposes.
+   - For `run execute`, parse the command's final JSON summary, identify its direct-run directory, and inspect the result/output artifacts named there. Because it has no SQLite record, do not substitute `run get`.
+   - Prefer structured result JSON or explicit output artifacts. Use `stdout.log` and `agent.log` only when structured output is absent or incomplete; use lifecycle and `stderr.log` to explain failure.
+   - Read the result contents, not merely their paths. For large artifacts, inspect enough of their schema, summary, counts, and representative records to accurately describe the outcome; offer the exact path for full data. Never dump secrets, cookies, tokens, or excessive raw records.
+   - Return the collected result to the current agent context, summarize what the automation produced, and answer the user's original goal from that result. Treat “run succeeded but result was not read” as incomplete.
+8. Report the final status, progress, collected result summary, and relevant artifact paths. If the run succeeded but no usable result exists, say so explicitly, inspect the logs for why, and do not invent a result.
+9. Only in **start without waiting** mode may the session end while the run is active. Report the task ID, run ID when available, last observed state, and exact status/log commands so the user can return later.
 
 Never convert start-and-wait into start-without-wait because of expected duration, host tool timeout, sparse output, or the fact that the RPA/browser process is visibly running.
 
@@ -246,7 +252,7 @@ On Windows PowerShell, prefer `--script-context-file` whenever creating, updatin
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
 4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target `dist\multiagentor-cli.exe` or another raw Go executable. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing the Agent/browser and injecting both paths before the Go CLI may execute the task.
 5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, apply **Supervise every started run** and continue until terminal state unless the user explicitly requested start without waiting.
-6. Report the run ID, final status, progress, and relevant result/log paths. In explicit start-without-wait mode, report the last observed state and the next inspection commands instead.
+6. After terminal state, collect and read the result as required by **Supervise every started run**. Report the run ID, final status, progress, result summary, and relevant result/log paths. In explicit start-without-wait mode, report the last observed state and the next inspection commands instead.
 
 ### Diagnose a failed run
 
@@ -303,6 +309,7 @@ When ready to act or hand off, provide:
 - The chosen values and defaults.
 - The exact PowerShell command or the result of executing it.
 - The created task/run ID when present.
+- After a waited run reaches terminal state, the actual collected result summary and its artifact path, not only the status.
 - One next command for status or logs.
 
 Avoid dumping the full command catalog unless the user asks for reference documentation.

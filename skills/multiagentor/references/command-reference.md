@@ -152,7 +152,13 @@ Starting a run is not completing a run. Unless the user explicitly requests back
 4. For `run execute`, supervise the process handle, captured output, and `%APPDATA%\multiagentor-cli\direct-runs\<runId>\` logs because it creates no SQLite run record.
 5. Continue until the current CLI/process reports success, failure, cancellation, or another documented terminal state.
 6. Recover from tool timeout/disconnection by querying the run or process/log state again; do not interpret tool timeout as task completion or failure.
-7. Inspect logs at failure/cancellation and report output paths at success.
+7. At terminal state, collect the task result before returning:
+   - For `run start`, call `run get --run-id <runId> --full`, then inspect its result/output fields and any artifact paths it returns.
+   - For `run execute`, parse the final JSON summary and inspect the named artifacts in `%APPDATA%\multiagentor-cli\direct-runs\<runId>\`; it has no `run get` record.
+   - Prefer structured JSON/output artifacts. Fall back to `stdout.log` or `agent.log` when necessary, and inspect lifecycle plus `stderr.log` for failures.
+   - Read and summarize the result content for the agent. Do not stop after reporting a file path. For large outputs, report schema, counts, key findings, and representative records while linking or naming the full artifact.
+   - If the process reports success but no usable result can be found, state that explicitly and inspect logs instead of inventing output.
+8. Return the final status, progress, collected result summary, and artifact paths. A waited run is not complete from the agent's perspective until result collection finishes.
 
 Only an explicit user instruction such as “启动后不用等待” permits returning while the run remains active. In that mode, return the task/run IDs, last state, and commands for `run get` and `run logs`.
 
