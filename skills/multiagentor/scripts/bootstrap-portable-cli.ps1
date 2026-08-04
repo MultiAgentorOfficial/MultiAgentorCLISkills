@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$CacheRoot = (Join-Path $env:APPDATA 'multiagentor-cli\portable-runtime'),
+    [string]$CacheRoot = (Join-Path $env:APPDATA 'multiagentor\portable-runtime'),
     [string]$NodeIndexUrl = 'https://nodejs.org/dist/index.json',
     [string]$NodeDistBaseUrl = 'https://nodejs.org/dist',
     [string]$CliPackage = 'multiagentor-cli@latest'
@@ -19,8 +19,7 @@ function Get-NodePlatform {
 
     switch ($architecture.ToUpperInvariant()) {
         'AMD64' { return 'win-x64' }
-        'ARM64' { return 'win-arm64' }
-        default { throw "Unsupported Windows architecture: $architecture. Expected AMD64 or ARM64." }
+        default { throw "Unsupported Windows architecture: $architecture. The current MultiAgentor npm package supports Windows x64 only." }
     }
 }
 

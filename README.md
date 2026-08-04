@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) | English
 
-Agent skills for installing, using, and troubleshooting [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) on Windows with Codex or WorkBuddy.
+Agent skills for installing, using, and troubleshooting [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli) on Windows x64 and Apple Silicon macOS with Codex or WorkBuddy.
 
 This repository currently contains `multiagentor`, a reusable agent skill that turns a natural-language automation request into a safe MultiAgentor CLI workflow. It can help discover scripts and browser environments, create and run tasks, inspect logs, and diagnose failures without requiring users to memorize IDs or command flags.
 
@@ -13,7 +13,7 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 - Discovers real script, browser, task, and run candidates before asking for IDs.
 - Searches personal scripts first (`script my`) and falls back to the full market (`script list`) when needed.
 - Reads a script's parameter metadata before creating a task.
-- Uses PowerShell-safe JSON files for custom execution parameters.
+- Uses shell-safe UTF-8 JSON files for custom execution parameters.
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
 - Requests confirmation before destructive or potentially duplicative actions.
 
@@ -28,7 +28,8 @@ skills/
     ├── agents/
     │   └── openai.yaml              # Codex UI metadata
     ├── scripts/
-    │   └── bootstrap-portable-cli.ps1 # Portable Node.js and CLI bootstrap
+    │   ├── bootstrap-portable-cli.ps1 # Windows portable Node.js and CLI bootstrap
+    │   └── bootstrap-portable-cli.sh  # Apple Silicon macOS portable bootstrap
     ├── references/
     │   └── command-reference.md     # CLI command reference
     └── evals/
@@ -38,7 +39,7 @@ skills/
 ## Requirements
 
 - Codex or WorkBuddy with skill support.
-- Windows and PowerShell for the documented CLI workflow.
+- Windows x64 with PowerShell, or Apple Silicon macOS with a POSIX shell. Intel macOS is not supported by the current npm package.
 - Node.js 18 or newer and npm when already available. If they are missing, the skill can bootstrap an isolated portable runtime automatically.
 - A MultiAgentor account and access to the scripts/browser environments used by your task.
 
@@ -79,6 +80,18 @@ Test-Path (Join-Path $destination 'SKILL.md')
 
 The last command should return `True`. Start a new Codex task after installation.
 
+On macOS:
+
+```bash
+git clone https://github.com/MultiAgentorOfficial/MultiAgentorCLISkills.git
+codex_home=${CODEX_HOME:-"$HOME/.codex"}
+destination="$codex_home/skills/multiagentor"
+test ! -e "$destination" || { echo "Skill already exists: $destination" >&2; exit 1; }
+mkdir -p "$codex_home/skills"
+cp -R MultiAgentorCLISkills/skills/multiagentor "$destination"
+test -f "$destination/SKILL.md"
+```
+
 ## Install in WorkBuddy
 
 ### Option 1: Ask WorkBuddy to install directly from GitHub (recommended)
@@ -118,7 +131,7 @@ Upload it:
 3. Review the source, scripts, requested file/network/command permissions, and enable the skill after import.
 4. Start a new task and ask WorkBuddy to use MultiAgentor, for example: `Use MultiAgentor to help me sign in.`
 
-For either method, review the source and requested permissions before enabling the skill. The portable CLI bootstrap and first local RPA run may need permission to execute PowerShell, access the network, and write under the current user's `%APPDATA%`. See the [official WorkBuddy skill documentation](https://cloud.tencent.com/document/product/1831/134432) for the current installation and permission UI.
+For either method, review the source and requested permissions before enabling the skill. The portable CLI bootstrap and first local RPA run may need permission to execute PowerShell or a POSIX shell, access the network, and write under `%APPDATA%\multiagentor` on Windows or `~/Library/Application Support/multiagentor` on macOS. See the [official WorkBuddy skill documentation](https://cloud.tencent.com/document/product/1831/134432) for the current installation and permission UI.
 
 ## Install the MultiAgentor CLI
 
@@ -131,15 +144,26 @@ npm.cmd install --global multiagentor-cli@latest
 multiagentor-cli --help
 ```
 
+On macOS, use `npm`/`npx` without the `.cmd` suffix:
+
+```bash
+node --version
+npm --version
+npm install --global multiagentor-cli@latest
+multiagentor-cli --help
+```
+
+The current npm package supports Apple Silicon (`darwin-arm64`) local execution. Do not force-install it under Rosetta on an Intel Mac: the package does not publish a `darwin-x64` runtime.
+
 If a global installation is unavailable, use the non-interactive npm launcher consistently:
 
 ```powershell
 npx.cmd --yes multiagentor-cli@latest --help
 ```
 
-If Node.js or npm is unavailable, the skill automatically runs its portable bootstrap. It downloads the matching Windows x64/ARM64 Node.js LTS ZIP from the official Node.js distribution, verifies SHA-256, and installs Node.js plus the CLI under `%APPDATA%\multiagentor-cli\portable-runtime`. It does not require an administrator account, change the system PATH, or install Node.js machine-wide.
+If Node.js or npm is unavailable, the skill automatically selects its OS-specific portable bootstrap. Windows x64 uses the verified Node.js ZIP under `%APPDATA%\multiagentor\portable-runtime`; Apple Silicon macOS uses the verified `darwin-arm64` tarball under `~/Library/Application Support/multiagentor/portable-runtime`. Neither changes the machine-wide PATH or installs Node.js system-wide.
 
-With CLI 0.3.2, npm installation and local runtime readiness are separate stages. The npm package already contains the RPA Agent but not the browser. On the first correctly npm-launched `run start` or `run execute`, the JavaScript launcher installs/verifies the packaged Agent, fetches the browser manifest, downloads and verifies the browser ZIP when needed, extracts it atomically, confirms `ClonBrowserCore.exe`, and injects both runtime paths before starting the task. If any preparation step fails, task execution does not begin. The verified runtime is cached under `%APPDATA%\multiagentor-cli\`; help, authentication, configuration, and remote CRUD commands do not trigger browser preparation. Never run the package's `dist\multiagentor-cli.exe` directly for a local task because that bypasses this readiness gate.
+npm installation and local runtime readiness are separate stages. The npm package contains the native CLI and `multi-agentor-script-core` for each published platform key, but not the browser. On the first correctly npm-launched `run start` or `run execute`, the JavaScript launcher installs/verifies script core, selects the platform browser artifact, verifies its size and SHA-256, extracts it atomically, applies executable permissions on macOS, and injects both runtime paths before starting the task. If preparation fails, task execution does not begin. Never run a package-internal native binary under `dist/<platform>/` directly because that bypasses this gate.
 
 ## Use the skill
 
@@ -177,7 +201,7 @@ If you installed a version named `multiagentor-cli-assistant`, install the new `
 
 For a manual installation, pull this repository and copy the updated contents of `skills/multiagentor` into the installed skill directory. Start a new Codex task after updating.
 
-To uninstall, remove only the installed `multiagentor` directory from `$CODEX_HOME/skills` (or `%USERPROFILE%\.codex\skills`). This does not uninstall the npm CLI or delete its local task data.
+To uninstall, remove only the installed `multiagentor` directory from `$CODEX_HOME/skills` (or the default `.codex/skills` directory in the user's home). This does not uninstall the npm CLI or delete its local task data.
 
 ## Contributing
 

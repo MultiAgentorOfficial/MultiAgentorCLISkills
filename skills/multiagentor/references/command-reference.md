@@ -4,10 +4,15 @@ This reference describes the currently supported command shape. Always run the r
 
 ## Install from npm
 
-Node.js 18 or newer is required. For a reusable command:
+Node.js 18 or newer is required. Detect the platform first. The current package metadata is authoritative; the package inspected while updating this reference exposes `win32-x64` and Apple Silicon `darwin-arm64`, not Intel macOS. For a reusable command:
 
 ```powershell
 npm.cmd install --global multiagentor-cli@latest
+multiagentor-cli --help
+```
+
+```bash
+npm install --global multiagentor-cli@latest
 multiagentor-cli --help
 ```
 
@@ -18,7 +23,14 @@ npx.cmd --yes multiagentor-cli@latest --help
 npx.cmd --yes multiagentor-cli@latest auth oauth
 ```
 
-If Node.js/npm is missing or Node.js is older than 18, run the skill's portable bootstrap script with Windows PowerShell:
+```bash
+npx --yes multiagentor-cli@latest --help
+npx --yes multiagentor-cli@latest auth oauth
+```
+
+If Node.js/npm is missing or Node.js is older than 18, run the skill's portable bootstrap for the host platform.
+
+Windows x64:
 
 ```powershell
 $runtime = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-skill>\scripts\bootstrap-portable-cli.ps1 |
@@ -27,29 +39,38 @@ $runtime = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-
 & $runtime.invocation --help
 ```
 
-The script downloads the newest compatible Node.js LTS ZIP for Windows x64 or ARM64 from `nodejs.org`, checks it against the release's official `SHASUMS256.txt`, extracts it under `%APPDATA%\multiagentor-cli\portable-runtime`, installs the CLI in that isolated cache, and creates `multiagentor-cli-portable.cmd`. It does not modify the system PATH or install Node.js machine-wide. Reuse `$runtime.invocation` for all later commands in the workflow.
+Apple Silicon macOS:
 
-The published npm tarball contains `bin/multiagentor-cli.js`, `bin/runtime-manager.js`, `dist/multiagentor-cli.exe`, and the packaged RPA Agent, but not the browser. npm-generated commands route through `bin/multiagentor-cli.js`. The first npm-launched `run start` or `run execute` installs/verifies the Agent, downloads and verifies the configured browser runtime, sets `MULTIAGENTOR_AGENT_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and then starts the Go executable. It caches the Agent and browser under `%APPDATA%\multiagentor-cli\`. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
-
-Never execute `node_modules\multiagentor-cli\dist\multiagentor-cli.exe` directly for a local run. A raw EXE can still create or inspect remote tasks, but it bypasses the JavaScript runtime manager and fails on a clean machine when the RPA Agent needs `ClonBrowserCore.exe`. Keep one of these launch paths intact:
-
-```text
-global npm shim: multiagentor-cli.cmd -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
-npx:             npx multiagentor-cli -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
-portable:        multiagentor-cli-portable.cmd -> npm shim -> bin\multiagentor-cli.js -> dist\multiagentor-cli.exe
+```bash
+runtime_json=$(sh <installed-skill>/scripts/bootstrap-portable-cli.sh | tail -n 1)
+invocation=$(printf '%s' "$runtime_json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).invocation))')
+"$invocation" --help
 ```
 
-An extracted full Windows bundle is a different artifact: verify that its root `multiagentor-cli.cmd` sets the bundled Agent/browser paths and use that root launcher. Do not apply npm download expectations to a full bundle, and do not treat an extracted npm `.tgz` as a full bundle.
+The Windows script verifies the official Node.js ZIP and installs under `%APPDATA%\multiagentor\portable-runtime`. The macOS script requires `Darwin arm64`, verifies the official Node.js `darwin-arm64` tarball, and installs under `${MULTIAGENTOR_HOME:-$HOME/Library/Application Support/multiagentor}/portable-runtime`. Both install the current CLI into an isolated cache, create a reusable native launcher, avoid machine-wide PATH changes, and return JSON containing `invocation`. Stop clearly on unsupported architectures rather than attempting emulation.
+
+The published npm tarball contains `bin/multiagentor-cli.js`, `bin/runtime-manager.js`, platform-native CLI binaries, and matching packaged `multi-agentor-script-core` binaries, but not the browser. npm-generated commands route through `bin/multiagentor-cli.js`. The first npm-launched `run start` or `run execute` installs/verifies script core, downloads and verifies the configured platform browser, sets `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and then starts the native CLI. Data is cached under `%APPDATA%\multiagentor` on Windows or `~/Library/Application Support/multiagentor` on macOS unless `MULTIAGENTOR_HOME` overrides it. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
+
+Never execute a native binary under `node_modules/multiagentor-cli/dist/<platform>/` directly for a local run. It bypasses the JavaScript runtime manager and can fail on a clean machine before script core/browser preparation. Keep one of these launch paths intact:
+
+```text
+Windows npm shim: multiagentor-cli.cmd -> bin/multiagentor-cli.js -> dist/win32-x64/multiagentor-cli.exe
+macOS npm shim:   multiagentor-cli -> bin/multiagentor-cli.js -> dist/darwin-arm64/multiagentor-cli
+npx:              npx multiagentor-cli -> bin/multiagentor-cli.js -> platform native CLI
+portable:         OS launcher -> npm shim -> bin/multiagentor-cli.js -> platform native CLI
+```
+
+An extracted full offline bundle is a different artifact: verify its root launcher and matching platform script-core/browser paths. Do not apply npm download expectations to a full bundle, assume a Windows `.cmd` exists on macOS, or treat an extracted npm `.tgz` as a full bundle.
 
 ### Runtime-readiness sequence
 
 `npm install` installs the command but does not necessarily download the browser. For local execution, the installed npm launcher must block task startup in this order when its package/runtime metadata requires these components:
 
-1. Check the npm package's Agent executable and `agent-manifest.json`.
-2. Install/reuse the versioned Agent under `%APPDATA%\multiagentor-cli\runtime\`.
+1. Check the npm package's native CLI, `multi-agentor-script-core`, and `script-core-manifest.json` for the detected platform key.
+2. Install/reuse script core under `<multiagentor-data>/runtime/<platform>/versions/<hash>/` and apply executable mode on macOS.
 3. Use an existing `MULTIAGENTOR_BROWSER_EXECUTABLE` only when that file exists; otherwise fetch and validate the HTTPS browser manifest.
-4. Reuse a valid cache or download the versioned browser ZIP, check declared size and SHA-256, extract atomically, confirm the manifest-declared executable, and update `browsers\current.json`.
-5. Set both runtime environment variables and only then spawn `dist\multiagentor-cli.exe` with the original arguments.
+4. Reuse a valid cache or download the platform browser ZIP, check declared size and SHA-256, extract atomically, confirm the declared executable, apply mode `0755` on macOS, and update `browsers/current.json`.
+5. Set `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, then spawn the platform-native CLI with the original arguments.
 
 If steps 1-4 fail, the launcher must exit nonzero before spawning the Go CLI. Treat this as runtime preparation failure: repair or retry the same task through the same launcher, never bypass the gate. Check live help for a public preparation command; when none exists, do not invent a dummy run or call internal JavaScript APIs directly merely to warm the cache.
 
@@ -129,7 +150,7 @@ multiagentor-cli task delete --id <taskId>
 
 Create/update call the remote task API, fetch `/cli`, and cache the runnable payload in SQLite. List only syncs summaries. A context object is the direct optional `/cli` request body. Omit context flags to use script defaults; explicitly pass `{}` to clear defaults.
 
-In Windows PowerShell, create a UTF-8 context file and prefer `--script-context-file` for task creation and other context-bearing operations. PowerShell 5.1 may remove embedded JSON quotes when passing an inline string to a native EXE, causing local JSON parsing to fail before the API call. Preserve the complete `options`/`vars` object from `execute-detail` when overriding one value.
+Create a UTF-8 context file and prefer `--script-context-file` for task creation and other context-bearing operations on both platforms. This avoids PowerShell 5.1 quote loss and zsh/bash quoting mistakes. Preserve the complete `options`/`vars` object from `execute-detail` when overriding one value.
 
 ## Local runs
 
@@ -142,34 +163,34 @@ multiagentor-cli run logs --run-id <runId>
 multiagentor-cli run cancel --run-id <runId>
 ```
 
-`run start` normally uses the cached payload. A supplied context is fetched for that run only. `run execute` validates and preserves one UTF-8 JSON object, writes it under `%APPDATA%\multiagentor-cli\direct-runs\<runId>\`, and creates no remote task or SQLite task/run record.
+`run start` normally uses the cached payload. A supplied context is fetched for that run only. `run execute` validates and preserves one UTF-8 JSON object, writes it under `<multiagentor-data>/direct-runs/<runId>/`, and creates no remote task or SQLite task/run record. `<multiagentor-data>` is `%APPDATA%\multiagentor` on Windows and `~/Library/Application Support/multiagentor` on macOS unless overridden by `MULTIAGENTOR_HOME`.
 
 Starting a run is not completing a run. Unless the user explicitly requests background/start-only behavior, keep the agent session active until `run get --full` or the foreground launcher reports a terminal state. If foreground waiting is unsuitable for the host:
 
 1. Start the resolved launcher with the host's supported hidden background-process mechanism.
 2. Capture stdout/stderr and retain the process handle when available.
 3. For `run start`, resolve the run ID from output or the newest matching entry from `--json run list --task-id <taskId>`, then poll `run get --run-id <runId> --full`.
-4. For `run execute`, supervise the process handle, captured output, and `%APPDATA%\multiagentor-cli\direct-runs\<runId>\` logs because it creates no SQLite run record.
+4. For `run execute`, supervise the process handle, captured output, and `<multiagentor-data>/direct-runs/<runId>/` logs because it creates no SQLite run record.
 5. Continue until the current CLI/process reports success, failure, cancellation, or another documented terminal state.
 6. Recover from tool timeout/disconnection by querying the run or process/log state again; do not interpret tool timeout as task completion or failure.
 7. At terminal state, collect the task result before returning:
    - For `run start`, call `run get --run-id <runId> --full`, then inspect its result/output fields and any artifact paths it returns.
-   - For `run execute`, parse the final JSON summary and inspect the named artifacts in `%APPDATA%\multiagentor-cli\direct-runs\<runId>\`; it has no `run get` record.
-   - Prefer structured JSON/output artifacts. Fall back to `stdout.log` or `agent.log` when necessary, and inspect lifecycle plus `stderr.log` for failures.
+   - For `run execute`, parse the final JSON summary and inspect the named artifacts in `<multiagentor-data>/direct-runs/<runId>/`; it has no `run get` record.
+   - Prefer structured JSON/output artifacts. Fall back to `stdout.log` or `script-core.log` when necessary, and inspect lifecycle plus `stderr.log` for failures.
    - Read and summarize the result content for the agent. Do not stop after reporting a file path. For large outputs, report schema, counts, key findings, and representative records while linking or naming the full artifact.
    - If the process reports success but no usable result can be found, state that explicitly and inspect logs instead of inventing output.
 8. Return the final status, progress, collected result summary, and artifact paths. A waited run is not complete from the agent's perspective until result collection finishes.
 
 Only an explicit user instruction such as “启动后不用等待” permits returning while the run remains active. In that mode, return the task/run IDs, last state, and commands for `run get` and `run logs`.
 
-Task-run files are normally under `%APPDATA%\multiagentor-cli\tasks\<taskId>\runs\<runId>\`:
+Task-run files are normally under `<multiagentor-data>/tasks/<taskId>/runs/<runId>/`:
 
 ```text
 task.json
 lifecycle.jsonl
 stdout.log
 stderr.log
-agent.log
+script-core.log
 ```
 
 Exit code 0 means success; a non-zero executor exit means failure.

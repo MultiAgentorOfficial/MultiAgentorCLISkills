@@ -1,4 +1,4 @@
 interface:
   display_name: "MultiAgentor"
-  short_description: "Install, operate, and troubleshoot MultiAgentor CLI"
-  default_prompt: "Use $multiagentor to guide me through login, browser and script selection, task creation, and execution."
+  short_description: "Operate MultiAgentor CLI on Windows and Apple Silicon macOS"
+  default_prompt: "Use $multiagentor to verify my platform, install or select the CLI, then guide login, browser and script selection, task creation, supervised execution, and result collection."

@@ -1,5 +1,18 @@
 # MultiAgentor CLI Skills
 
+> 平台支持：当前 npm 包支持 Windows x64 与 Apple Silicon macOS（`darwin-arm64`）。Intel Mac、Windows ARM64 和 Linux 暂不支持本地任务执行；skill 会先检查系统与架构，不会尝试不受支持的原生运行时。
+
+在 Apple Silicon macOS 上手动安装 CLI：
+
+```bash
+node --version
+npm --version
+npm install --global multiagentor-cli@latest
+multiagentor-cli --help
+```
+
+如果没有 Node.js/npm，skill 会运行 `scripts/bootstrap-portable-cli.sh`，从 Node.js 官方源下载并校验 `darwin-arm64` LTS 运行时，将 Node.js 和 CLI 隔离安装到 `~/Library/Application Support/multiagentor/portable-runtime`，不修改系统级 PATH。首次执行 `run start` 或 `run execute` 时，npm JavaScript 启动器会准备并校验 macOS 版 `multi-agentor-script-core` 和 `MultiAgentBrowser.app/Contents/MacOS/MultiAgentBrowser`，全部就绪后才会启动任务。
+
 简体中文 | [English](README.md)
 
 本项目提供可在 Codex 或 WorkBuddy 中使用的 Agent Skill，用于在 Windows 上安装、使用和排查 [MultiAgentor CLI](https://www.npmjs.com/package/multiagentor-cli)。
@@ -137,9 +150,9 @@ multiagentor-cli --help
 npx.cmd --yes multiagentor-cli@latest --help
 ```
 
-如果没有 Node.js 或 npm，技能会自动运行便携环境引导脚本：从 Node.js 官方分发源下载匹配 Windows x64/ARM64 的 LTS ZIP，完成 SHA-256 校验后，将 Node.js 和 CLI 安装到 `%APPDATA%\multiagentor-cli\portable-runtime`。整个过程无需管理员权限，不修改系统 PATH，也不会在系统中全局安装 Node.js。
+如果没有 Node.js 或 npm，技能会按系统选择便携环境引导脚本。Windows x64 使用 `bootstrap-portable-cli.ps1`，安装到 `%APPDATA%\multiagentor\portable-runtime`；Apple Silicon macOS 使用 `bootstrap-portable-cli.sh`，安装到 `~/Library/Application Support/multiagentor/portable-runtime`。两者都从 Node.js 官方源下载 LTS 运行时、完成 SHA-256 校验，不修改系统级 PATH。
 
-在 CLI 0.3.2 中，npm 安装完成和本地运行环境就绪是两个阶段。npm 包已经包含 RPA Agent，但不包含浏览器。首次通过正确的 npm 启动器执行 `run start` 或 `run execute` 时，JavaScript 启动器会先安装并校验随包 Agent、获取浏览器清单、按需下载并校验浏览器 ZIP、原子解压、确认 `ClonBrowserCore.exe` 存在，并注入两个运行时路径；所有准备步骤成功后才会真正启动任务。任一步失败都会停止在准备阶段。验证后的运行时会缓存到 `%APPDATA%\multiagentor-cli\`；帮助、登录、配置及远程增删改查命令不会触发浏览器准备。执行本地任务时不要直接运行 npm 包内的 `dist\multiagentor-cli.exe`，否则会绕过这道就绪检查。
+npm 安装完成和本地运行环境就绪是两个阶段。npm 包包含各受支持平台的原生 CLI 与 `multi-agentor-script-core`，但不包含浏览器。首次通过正确的 npm 启动器执行 `run start` 或 `run execute` 时，JavaScript 启动器会校验并安装 script core、选择并下载对应平台的浏览器 ZIP、校验大小与 SHA-256、原子解压，并在 macOS 上设置执行权限；全部就绪后才启动任务。不要直接运行 `dist/<platform>/` 下的原生 CLI，否则会绕过这道就绪检查。
 
 ## 使用示例
 
