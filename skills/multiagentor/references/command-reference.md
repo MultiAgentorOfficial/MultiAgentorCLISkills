@@ -2,6 +2,32 @@
 
 This reference describes the currently supported command shape. Always run the relevant installed `multiagentor-cli --help` command first and treat live output as authoritative when capabilities differ.
 
+## Version checks and updates
+
+The skill version is stored in `VERSION` and is independent of the npm CLI version. Run exactly one skill update check at the beginning of a new MultiAgentor workflow:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-skill>\scripts\update-skill.ps1
+```
+
+```bash
+sh <installed-skill>/scripts/update-skill.sh
+```
+
+The updater compares strict SemVer with the official GitHub `main` branch. A clean Git checkout receives `git pull --ff-only`; a standalone installation receives a validated archive replacement with a timestamped backup. It refuses to overwrite a dirty Git worktree. When JSON reports `restart_required: true`, stop and start a new agent task before using the updated skill.
+
+For a global npm-managed CLI, compare and update through the packaged helper:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-skill>\scripts\update-cli.ps1
+```
+
+```bash
+sh <installed-skill>/scripts/update-cli.sh
+```
+
+These helpers resolve `npm view multiagentor-cli@latest version`, install that exact version when it differs from the global package, verify `npm list --global`, and run `--help`. Rerunning a portable bootstrap applies the same check to its isolated CLI. Do not silently convert offline bundles, local tarballs, pinned packages, or custom executors to the npm latest channel.
+
 ## Install from npm
 
 Node.js 18 or newer is required. Detect the platform first. The current package metadata is authoritative; the package inspected while updating this reference exposes `win32-x64` and Apple Silicon `darwin-arm64`, not Intel macOS. For a reusable command:

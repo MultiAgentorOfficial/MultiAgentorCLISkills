@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Install, guide, and operate MultiAgentor CLI on supported Windows and Apple Silicon macOS hosts for login, browser selection or creation, personal and market script discovery, remote task CRUD, supervised local execution, result collection, logs, cancellation, and configuration. Use whenever a user asks to install or use multiagentor-cli, browse or run an RPA automation even when the CLI is absent, supplies partial parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations: authenticate, choose or create a browser, find a personal or market script, resolve parameters, create a task, then run and supervise it to a terminal state unless the user explicitly asks not to wait. Detect the host platform, bootstrap and verify the CLI first, discover live candidates, infer safe defaults, and ask focused choice-based questions instead of requiring commands, flags, or IDs."
+description: "Version-check, update, install, guide, and operate MultiAgentor skill and CLI on supported Windows and Apple Silicon macOS hosts for login, browser selection or creation, personal and market script discovery, remote task CRUD, supervised local execution, result collection, logs, cancellation, and configuration. Use whenever a user asks to install, update, or use multiagentor-cli, browse or run an RPA automation even when the CLI is absent, supplies partial parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations: update the skill and CLI first, authenticate, choose or create a browser, find a personal or market script, resolve parameters, create a task, then run and supervise it to a terminal state unless the user explicitly asks not to wait. Detect the host platform, discover live candidates, infer safe defaults, and ask focused choice-based questions instead of requiring commands, flags, or IDs."
 ---
 
 # MultiAgentor
@@ -10,15 +10,40 @@ Turn the user's goal into a valid MultiAgentor CLI workflow. Reduce cognitive lo
 ## Start here
 
 1. Restate the intended outcome in one short sentence.
-2. Bootstrap the CLI before API discovery. Prefer the published npm package when no trusted project bundle is already in scope; follow **Install or select the CLI** below.
-3. Run the selected invocation with `--help` and treat live help as authoritative.
-4. Authenticate before protected discovery. Run `auth oauth` when login is requested, no usable token exists, or a discovery command reports an authentication failure; wait for successful authorization before continuing.
-5. For a new automation, preserve this order: **login → choose/create browser environment → choose script and execution parameters → create task → run task**. Do not select the script before resolving the browser environment.
-6. Use read-only discovery commands before asking the user for IDs or supported values.
-7. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
-8. Ask only about missing, ambiguous, or consequential values, except that browser mode selection and task execution parameters are explicit user choices for every new task. Continue automatically after the answer when the requested action authorizes it.
+2. Run the **version-update gate** once before CLI/API discovery. If the skill updates, stop and ask the user to start a new agent task so the new instructions load.
+3. Bootstrap or update the CLI before API discovery. Prefer the published npm package when no trusted project bundle is already in scope; follow **Install or select the CLI** below.
+4. Run the selected invocation with `--help` and treat live help as authoritative.
+5. Authenticate before protected discovery. Run `auth oauth` when login is requested, no usable token exists, or a discovery command reports an authentication failure; wait for successful authorization before continuing.
+6. For a new automation, preserve this order: **login → choose/create browser environment → choose script and execution parameters → create task → run task**. Do not select the script before resolving the browser environment.
+7. Use read-only discovery commands before asking the user for IDs or supported values.
+8. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
+9. Ask only about missing, ambiguous, or consequential values, except that browser mode selection and task execution parameters are explicit user choices for every new task. Continue automatically after the answer when the requested action authorizes it.
 
 Read [references/command-reference.md](references/command-reference.md) when assembling a command or diagnosing behavior.
+
+## Enforce the version-update gate
+
+Treat skill version and CLI version as independent.
+
+1. Read this installed skill's `VERSION`, then run its OS updater once at the start of each new MultiAgentor workflow:
+   - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <skill>/scripts/update-skill.ps1`
+   - macOS: `sh <skill>/scripts/update-skill.sh`
+2. The updater checks the official `MultiAgentorOfficial/MultiAgentorCLISkills` repository. When a newer strict SemVer exists, update immediately as the user requested:
+   - In a clean Git worktree, use `git pull --ff-only origin main`.
+   - In a standalone installed skill, download the official GitHub archive, validate `VERSION` and `name: multiagentor`, stage beside the installation, retain a timestamped backup, and atomically replace the directory with rollback on failure.
+3. Never discard local modifications or force/reset a Git worktree. If it is dirty, report the newer version and stop for user direction.
+4. If `updated` and `restart_required` are true, report old/new versions and backup path, then end the current workflow. Ask the user to start a new Codex/WorkBuddy task; the currently loaded skill text remains in agent context and must not be treated as refreshed.
+5. If the check cannot reach GitHub, report that freshness is unverified. Do not claim the skill is current. Continue with the installed skill only when the user allows offline continuation or the active request already explicitly permits it.
+6. Do not run the updater repeatedly within one workflow and never update while a local RPA run is active.
+
+After the skill gate passes, check CLI freshness before authentication or task work:
+
+- Global npm installation: run the OS-specific `scripts/update-cli.ps1` or `scripts/update-cli.sh`. Compare the installed package with `npm view multiagentor-cli@latest version`; install the exact resolved latest version when different, then verify npm's installed version and `--help`.
+- Portable installation: rerun the OS portable bootstrap. It performs the same npm latest comparison and updates its isolated package when needed.
+- `npx --yes multiagentor-cli@latest`: retain the full prefix; npm resolves the current dist-tag for that invocation.
+- Full offline bundle, local `.tgz`, explicitly pinned package, or custom executor: do not silently replace its provenance with npm. Report the detected version/source and offer migration to the npm latest channel when appropriate.
+
+Complete all version updates before resolving and reusing one CLI invocation. Never update the CLI midway through a run.
 
 ## Install or select the CLI
 
@@ -53,7 +78,7 @@ Resolve one stable invocation and reuse it for the entire workflow.
    ```
 
    Resolve the script path relative to this installed skill, not the user's current directory. Reuse the returned `invocation` for the entire workflow. Do not modify the machine-wide PATH or install system-wide Node.js. Network/sandbox approval may still be required by the active environment; request it when the tool reports that requirement. Report the official download source, selected version/platform, cache path, and checksum result without dumping npm logs.
-6. If compatible Node.js/npm is already available, prefer installing the current npm release for a reusable workflow. Use `npm.cmd` on Windows PowerShell and `npm` on macOS:
+6. If compatible Node.js/npm is already available, prefer the current npm release for a reusable workflow. For an existing global npm installation, run `update-cli.ps1`/`update-cli.sh`; otherwise install the current release. Use `npm.cmd` on Windows PowerShell and `npm` on macOS:
 
    ```powershell
    npm.cmd install --global multiagentor-cli@latest

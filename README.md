@@ -9,6 +9,7 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 ## What the skill does
 
 - Installs or selects one stable `multiagentor-cli` invocation.
+- Checks the skill's GitHub SemVer and the CLI's npm `latest` version before a workflow, then updates supported installations automatically.
 - Guides OAuth login and configuration checks.
 - Discovers real script, browser, task, and run candidates before asking for IDs.
 - Searches personal scripts first (`script my`) and falls back to the full market (`script list`) when needed.
@@ -29,7 +30,10 @@ skills/
     │   └── openai.yaml              # Codex UI metadata
     ├── scripts/
     │   ├── bootstrap-portable-cli.ps1 # Windows portable Node.js and CLI bootstrap
-    │   └── bootstrap-portable-cli.sh  # Apple Silicon macOS portable bootstrap
+    │   ├── bootstrap-portable-cli.sh  # Apple Silicon macOS portable bootstrap
+    │   ├── update-skill.ps1/.sh       # GitHub skill version check and replacement
+    │   └── update-cli.ps1/.sh         # npm global CLI version update
+    ├── VERSION                         # Independent skill SemVer
     ├── references/
     │   └── command-reference.md     # CLI command reference
     └── evals/
@@ -195,7 +199,16 @@ For a new automation, the guided sequence is: **sign in → choose or create a b
 
 ## Update or uninstall
 
-To update an installation made by `$skill-installer`, back up or remove the existing `multiagentor` skill directory and install it again from the GitHub URL. The installer intentionally stops when the destination already exists.
+The skill and CLI use separate versions:
+
+- `skills/multiagentor/VERSION` identifies the skill release.
+- npm's `multiagentor-cli@latest` dist-tag identifies the current CLI release.
+
+At the start of each new MultiAgentor workflow, the skill checks its official GitHub `VERSION`. A newer version is pulled with `git pull --ff-only` for a clean checkout, or installed from a validated GitHub archive for a standalone skill directory. Standalone updates retain a timestamped sibling backup and roll back if replacement fails. Dirty Git worktrees are never overwritten.
+
+After a skill replacement, start a new Codex or WorkBuddy task so the new `SKILL.md` is loaded. The same workflow then checks npm-managed CLI installations and installs the exact npm `latest` version when it differs. Portable bootstraps also upgrade their isolated CLI cache. Offline bundles, local tarballs, pinned packages, and custom executors are not silently converted to npm installations.
+
+For older installations that predate automatic updating, reinstall once from the GitHub URL. Future releases can then use the included updater.
 
 If you installed a version named `multiagentor-cli-assistant`, install the new `multiagentor` directory and then remove the old directory after verification. Keeping both directories may cause Codex to discover duplicate skills.
 
@@ -210,8 +223,9 @@ Issues and pull requests are welcome. When changing the skill:
 1. Keep `SKILL.md` focused on decision-making and workflow rules.
 2. Put detailed command syntax in `references/command-reference.md`.
 3. Add or update cases in `evals/evals.json` for behavior changes.
-4. Validate commands against the current `multiagentor-cli --help` output.
-5. Never include tokens, cookies, passwords, task payloads, or local log data in commits.
+4. Increment `skills/multiagentor/VERSION` using SemVer for every published skill change; the updater cannot discover a release whose version was not bumped.
+5. Validate commands against the current `multiagentor-cli --help` output.
+6. Never include tokens, cookies, passwords, task payloads, or local log data in commits.
 
 ## License
 

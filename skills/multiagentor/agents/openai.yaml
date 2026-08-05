@@ -1,4 +1,4 @@
 interface:
   display_name: "MultiAgentor"
-  short_description: "Operate MultiAgentor CLI on Windows and Apple Silicon macOS"
-  default_prompt: "Use $multiagentor to verify my platform, install or select the CLI, then guide login, browser and script selection, task creation, supervised execution, and result collection."
+  short_description: "Keep MultiAgentor skill and CLI current, then operate RPA"
+  default_prompt: "Use $multiagentor to check and update the skill and CLI, verify my platform, then guide login, browser and script selection, task creation, supervised execution, and result collection."

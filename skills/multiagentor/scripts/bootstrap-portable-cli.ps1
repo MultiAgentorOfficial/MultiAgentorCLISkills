@@ -201,15 +201,32 @@ $previousPath = $env:PATH
 
 try {
     $env:PATH = "$nodeDirectory;$previousPath"
-    if (-not (Test-Path -LiteralPath $cliCommand)) {
-        & $npmCommand install --prefix $cliRoot --no-audit --no-fund $CliPackage
+    $packageJson = Join-Path $cliRoot 'node_modules\multiagentor-cli\package.json'
+    $installedCliVersion = if (Test-Path -LiteralPath $packageJson) {
+        [string]((Get-Content -Raw -LiteralPath $packageJson | ConvertFrom-Json).version)
+    } else { '' }
+    $latestCliVersion = ''
+    if ($CliPackage -eq 'multiagentor-cli@latest') {
+        $latestRaw = & $npmCommand view 'multiagentor-cli@latest' version --json
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve the latest MultiAgentor CLI version from npm.' }
+        $latestCliVersion = ([string]($latestRaw | ConvertFrom-Json)).Trim()
+    }
+    if (-not (Test-Path -LiteralPath $cliCommand) -or
+        ($latestCliVersion -and $installedCliVersion -ne $latestCliVersion)) {
+        $installTarget = if ($latestCliVersion) { "multiagentor-cli@$latestCliVersion" } else { $CliPackage }
+        & $npmCommand install --prefix $cliRoot --no-audit --no-fund $installTarget
         if ($LASTEXITCODE -ne 0) {
-            throw "npm failed to install $CliPackage (exit code $LASTEXITCODE)."
+            throw "npm failed to install $installTarget (exit code $LASTEXITCODE)."
         }
     }
 
     if (-not (Test-Path -LiteralPath $cliCommand)) {
         throw "The npm package did not create the expected CLI command: $cliCommand"
+    }
+
+    $verifiedCliVersion = [string]((Get-Content -Raw -LiteralPath $packageJson | ConvertFrom-Json).version)
+    if ($latestCliVersion -and $verifiedCliVersion -ne $latestCliVersion) {
+        throw "CLI verification mismatch: installed $verifiedCliVersion, expected $latestCliVersion."
     }
 
     & $cliCommand --help | Out-Null
@@ -237,4 +254,7 @@ Set-Content -LiteralPath $launcher -Value $launcherLines -Encoding Ascii
     platform = $platform
     cache_root = $cachePath
     node_downloaded = $nodeDownloaded
+    cli_version = $verifiedCliVersion
+    latest_cli_version = $latestCliVersion
+    cli_updated = [bool]($installedCliVersion -and $installedCliVersion -ne $verifiedCliVersion)
 } | ConvertTo-Json -Compress

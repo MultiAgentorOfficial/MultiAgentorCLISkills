@@ -1,5 +1,7 @@
 # MultiAgentor CLI Skills
 
+> 版本更新：Skill 与 CLI 使用独立版本。Skill 版本记录在 `skills/multiagentor/VERSION`，CLI 版本以 npm 的 `multiagentor-cli@latest` 为准。每个新的 MultiAgentor 工作流开始时会检查官方 GitHub Skill 版本；发现新版本后直接使用干净 Git 工作区的 `pull --ff-only`，或通过经过身份/版本校验的 GitHub 压缩包备份并原子替换普通安装目录。Skill 更新后必须新建 Codex/WorkBuddy 任务，让新的 `SKILL.md` 进入上下文。随后检查 npm CLI，版本落后时直接升级并验证 `--help`。不会覆盖有本地修改的 Git 工作区，也不会擅自把离线 bundle、固定版本或自定义执行器切换成 npm 最新版。
+
 > 平台支持：当前 npm 包支持 Windows x64 与 Apple Silicon macOS（`darwin-arm64`）。Intel Mac、Windows ARM64 和 Linux 暂不支持本地任务执行；skill 会先检查系统与架构，不会尝试不受支持的原生运行时。
 
 在 Apple Silicon macOS 上手动安装 CLI：
@@ -193,6 +195,8 @@ Codex 会先发现可用选项。创建任务前，它会展示所选脚本可�
 卸载时，只需移除 `$CODEX_HOME/skills`（或 `%USERPROFILE%\.codex\skills`）下的 `multiagentor` 目录。该操作不会卸载 npm CLI，也不会删除 CLI 的本地任务数据。
 
 ## 参与贡献
+
+发布任何 Skill 修改时必须同步提升 `skills/multiagentor/VERSION` 的 SemVer；如果内容变化但版本号未变化，已安装 Skill 无法发现该更新。
 
 欢迎提交 Issue 和 Pull Request。修改技能时请遵循以下原则：
 

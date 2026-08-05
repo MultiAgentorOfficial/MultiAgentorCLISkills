@@ -82,14 +82,33 @@ launcher="$cache_root/multiagentor-cli-portable"
 PATH="$node_dir/bin:$PATH"
 export PATH
 
-if [ ! -x "$cli_command" ]; then
-  "$npm_bin" install --prefix "$cli_root" --no-audit --no-fund "$CLI_PACKAGE"
+package_json="$cli_root/node_modules/multiagentor-cli/package.json"
+installed_cli_version=""
+if [ -f "$package_json" ]; then
+  installed_cli_version=$("$node_bin" -e 'process.stdout.write(require(process.argv[1]).version)' "$package_json")
+fi
+latest_cli_version=""
+if [ "$CLI_PACKAGE" = "multiagentor-cli@latest" ]; then
+  latest_cli_version=$("$npm_bin" view multiagentor-cli@latest version --json | tr -d '"[:space:]')
+  test -n "$latest_cli_version" || { echo 'Failed to resolve the latest MultiAgentor CLI version from npm.' >&2; exit 1; }
+fi
+if [ ! -x "$cli_command" ] || { [ -n "$latest_cli_version" ] && [ "$installed_cli_version" != "$latest_cli_version" ]; }; then
+  install_target=$CLI_PACKAGE
+  if [ -n "$latest_cli_version" ]; then install_target="multiagentor-cli@$latest_cli_version"; fi
+  "$npm_bin" install --prefix "$cli_root" --no-audit --no-fund "$install_target"
 fi
 if [ ! -x "$cli_command" ]; then
   echo "The npm package did not create the expected CLI command: $cli_command" >&2
   exit 1
 fi
 "$cli_command" --help >/dev/null
+verified_cli_version=$("$node_bin" -e 'process.stdout.write(require(process.argv[1]).version)' "$package_json")
+if [ -n "$latest_cli_version" ] && [ "$verified_cli_version" != "$latest_cli_version" ]; then
+  echo "CLI verification mismatch: installed $verified_cli_version, expected $latest_cli_version." >&2
+  exit 1
+fi
+cli_updated=false
+if [ -n "$installed_cli_version" ] && [ "$installed_cli_version" != "$verified_cli_version" ]; then cli_updated=true; fi
 
 escaped_node_dir=$(printf '%s' "$node_dir/bin" | sed "s/'/'\\\\''/g")
 escaped_cli=$(printf '%s' "$cli_command" | sed "s/'/'\\\\''/g")
@@ -105,11 +124,14 @@ json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-printf '{"invocation":"%s","node_path":"%s","npm_path":"%s","node_version":"%s","platform":"%s","cache_root":"%s","node_downloaded":%s}\n' \
+printf '{"invocation":"%s","node_path":"%s","npm_path":"%s","node_version":"%s","platform":"%s","cache_root":"%s","node_downloaded":%s,"cli_version":"%s","latest_cli_version":"%s","cli_updated":%s}\n' \
   "$(json_escape "$launcher")" \
   "$(json_escape "$node_bin")" \
   "$(json_escape "$npm_bin")" \
   "$(json_escape "$("$node_bin" --version)")" \
   "$platform" \
   "$(json_escape "$cache_root")" \
-  "$node_downloaded"
+  "$node_downloaded" \
+  "$verified_cli_version" \
+  "$latest_cli_version" \
+  "$cli_updated"
