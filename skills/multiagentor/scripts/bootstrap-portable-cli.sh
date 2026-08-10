@@ -19,6 +19,7 @@ fi
 data_root=${MULTIAGENTOR_HOME:-"$HOME/Library/Application Support/multiagentor"}
 cache_root=${CACHE_ROOT:-"$data_root/portable-runtime"}
 platform=darwin-arm64
+node_index_file_tag=osx-arm64-tar
 mkdir -p "$cache_root"
 
 index_file=$(mktemp "$cache_root/.node-index.XXXXXX")
@@ -33,11 +34,11 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 curl --fail --silent --show-error --location --retry 3 "$NODE_INDEX_URL" -o "$index_file"
-release_line=$(grep '"lts":' "$index_file" | grep '"darwin-arm64"' | head -n 1 || true)
+release_line=$(grep '"lts":' "$index_file" | grep "\"$node_index_file_tag\"" | head -n 1 || true)
 version=$(printf '%s\n' "$release_line" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
 major=$(printf '%s\n' "$version" | sed -n 's/^v\([0-9][0-9]*\).*/\1/p')
 if [ "$version" = "" ] || [ "$major" = "" ] || [ "$major" -lt 18 ]; then
-  echo "No compatible Node.js LTS >=18 release with a darwin-arm64 archive was found." >&2
+  echo "No compatible Node.js LTS >=18 release with the $node_index_file_tag artifact was found." >&2
   exit 1
 fi
 

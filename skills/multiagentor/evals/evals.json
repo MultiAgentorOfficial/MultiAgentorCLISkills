@@ -96,6 +96,12 @@
       "prompt": "Run task task-123, wait until it finishes, read the result, and make it easy for me to run the same task again later.",
       "expected_output": "Self-check and update the Skill and npm-managed CLI before execution, then run and supervise task-123 to a terminal state and read its result artifacts. Report the result and emit one fenced, copyable natural-language repeat-run prompt addressed to $multiagentor. The prompt includes stable task ID/name, saved/default versus one-run context mode, safe effective parameters, waiting to terminal state, and result collection. It excludes the previous run ID, tokens, cookies, passwords, proxy credentials, temporary context files, and transient logs; required secrets become an instruction to ask securely before running. If repeating may duplicate an external side effect, require confirmation immediately before execution.",
       "files": []
+    },
+    {
+      "id": 17,
+      "prompt": "On Apple Silicon macOS the portable bootstrap says no compatible darwin-arm64 Node LTS archive exists, but nodejs.org does publish one.",
+      "expected_output": "Diagnose the distinction between Node's index metadata and archive filename. Select a compatible LTS release by requiring the files entry osx-arm64-tar, while constructing and downloading node-<version>-darwin-arm64.tar.gz. Continue to verify that exact archive against the official SHASUMS256.txt before extraction. Do not use darwin-arm64 as the index files filter, do not change the archive filename to osx-arm64-tar, and do not bypass checksum validation.",
+      "files": []
     }
   ]
 }

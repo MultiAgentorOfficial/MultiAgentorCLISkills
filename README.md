@@ -168,7 +168,7 @@ If a global installation is unavailable, use the non-interactive npm launcher co
 npx.cmd --yes multiagentor-cli@latest --help
 ```
 
-If Node.js or npm is unavailable, the skill automatically selects its OS-specific portable bootstrap. Windows x64 uses the verified Node.js ZIP under `%APPDATA%\multiagentor\portable-runtime`; Apple Silicon macOS uses the verified `darwin-arm64` tarball under `~/Library/Application Support/multiagentor/portable-runtime`. Neither changes the machine-wide PATH or installs Node.js system-wide.
+If Node.js or npm is unavailable, the skill automatically selects its OS-specific portable bootstrap. Windows x64 uses the verified Node.js ZIP under `%APPDATA%\multiagentor\portable-runtime`. Apple Silicon macOS selects releases using Node's `osx-arm64-tar` index label, while downloading the officially named `darwin-arm64.tar.gz` archive, and installs under `~/Library/Application Support/multiagentor/portable-runtime`. Neither changes the machine-wide PATH or installs Node.js system-wide.
 
 npm installation and local runtime readiness are separate stages. The npm package contains the native CLI and `multi-agentor-script-core` for each published platform key, but not the browser. On the first correctly npm-launched `run start` or `run execute`, the JavaScript launcher installs/verifies script core, selects the platform browser artifact, verifies its size and SHA-256, extracts it atomically, applies executable permissions on macOS, and injects both runtime paths before starting the task. If preparation fails, task execution does not begin. Never run a package-internal native binary under `dist/<platform>/` directly because that bypasses this gate.
 

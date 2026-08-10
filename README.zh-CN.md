@@ -15,7 +15,7 @@ npm install --global multiagentor-cli@latest
 multiagentor-cli --help
 ```
 
-如果没有 Node.js/npm，skill 会运行 `scripts/bootstrap-portable-cli.sh`，从 Node.js 官方源下载并校验 `darwin-arm64` LTS 运行时，将 Node.js 和 CLI 隔离安装到 `~/Library/Application Support/multiagentor/portable-runtime`，不修改系统级 PATH。首次执行 `run start` 或 `run execute` 时，npm JavaScript 启动器会准备并校验 macOS 版 `multi-agentor-script-core` 和 `MultiAgentBrowser.app/Contents/MacOS/MultiAgentBrowser`，全部就绪后才会启动任务。
+如果没有 Node.js/npm，skill 会运行 `scripts/bootstrap-portable-cli.sh`：使用 Node 官方索引标签 `osx-arm64-tar` 选择 LTS 版本，但下载文件仍使用官方命名 `node-<version>-darwin-arm64.tar.gz`。校验完成后，将 Node.js 和 CLI 隔离安装到 `~/Library/Application Support/multiagentor/portable-runtime`，不修改系统级 PATH。首次执行 `run start` 或 `run execute` 时，npm JavaScript 启动器会准备并校验 macOS 版 `multi-agentor-script-core` 和 `MultiAgentBrowser.app/Contents/MacOS/MultiAgentBrowser`，全部就绪后才会启动任务。
 
 简体中文 | [English](README.md)
 
