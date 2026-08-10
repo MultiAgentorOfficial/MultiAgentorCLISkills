@@ -19,10 +19,11 @@ function Read-SemVer {
 }
 
 function Write-Result {
-    param([string]$Current, [string]$Latest, [bool]$Updated, [string]$Method, [string]$Backup = '')
+    param([string]$Current, [string]$Latest, [bool]$Updated, [string]$Method, [bool]$Integrity, [string]$Backup = '')
     [ordered]@{
         current_version = $Current
         latest_version = $Latest
+        integrity_ok = $Integrity
         updated = $Updated
         method = $Method
         backup_path = $Backup
@@ -32,20 +33,35 @@ function Write-Result {
 
 $skillRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $versionFile = Join-Path $skillRoot 'VERSION'
-if (-not (Test-Path -LiteralPath $versionFile)) { throw "Missing skill VERSION: $versionFile" }
-$currentText = (Get-Content -Raw -LiteralPath $versionFile).Trim()
-$current = Read-SemVer $currentText
+$requiredFiles = @(
+    'SKILL.md',
+    'VERSION',
+    'agents\openai.yaml',
+    'references\command-reference.md',
+    'scripts\update-skill.ps1',
+    'scripts\update-skill.sh'
+)
+$integrityOk = $true
+foreach ($relative in $requiredFiles) {
+    if (-not (Test-Path -LiteralPath (Join-Path $skillRoot $relative) -PathType Leaf)) { $integrityOk = $false }
+}
+$localSkill = Join-Path $skillRoot 'SKILL.md'
+if (Test-Path -LiteralPath $localSkill) {
+    if ((Get-Content -Raw -LiteralPath $localSkill) -notmatch '(?m)^name:\s*multiagentor\s*$') { $integrityOk = $false }
+}
+$currentText = if (Test-Path -LiteralPath $versionFile) { (Get-Content -Raw -LiteralPath $versionFile).Trim() } else { '0.0.0' }
+try { $current = Read-SemVer $currentText } catch { $integrityOk = $false; $currentText = '0.0.0'; $current = [version]'0.0.0' }
 $encodedRef = [Uri]::EscapeDataString($Ref)
 $versionUrl = "https://raw.githubusercontent.com/$Repository/$encodedRef/skills/multiagentor/VERSION"
 $latestText = (Invoke-RestMethod -UseBasicParsing -Headers @{ 'User-Agent' = 'multiagentor-skill-updater' } -Uri $versionUrl).Trim()
 $latest = Read-SemVer $latestText
 
-if ($latest -le $current) {
-    Write-Result $currentText $latestText $false 'none'
+if ($latest -le $current -and $integrityOk) {
+    Write-Result $currentText $latestText $false 'none' $true
     exit 0
 }
 if ($CheckOnly) {
-    Write-Result $currentText $latestText $false 'available'
+    Write-Result $currentText $latestText $false 'available-or-repair' $integrityOk
     exit 0
 }
 
@@ -56,16 +72,16 @@ if ($git) {
         $origin = ((& $git.Source -C $worktree remote get-url origin) | Select-Object -First 1).Trim()
         if ($LASTEXITCODE -ne 0 -or
             $origin -notmatch '^(https://github\.com/|git@github\.com:|ssh://git@github\.com/|git://github\.com/)MultiAgentorOfficial/MultiAgentorCLISkills(?:\.git)?/?$') {
-            throw "A newer official skill exists, but this Git worktree origin is not the official repository: $origin"
+            throw "A Skill update or repair is required, but this Git worktree origin is not the official repository: $origin"
         }
         $dirty = (& $git.Source -C $worktree status --porcelain)
         if ($LASTEXITCODE -ne 0) { throw 'Failed to inspect the skill Git worktree.' }
-        if ($dirty) { throw "A newer skill exists, but the Git worktree has local changes: $worktree" }
+        if ($dirty) { throw "A Skill update or repair is required, but the Git worktree has local changes: $worktree" }
         & $git.Source -C $worktree pull --ff-only origin $Ref
         if ($LASTEXITCODE -ne 0) { throw 'git pull --ff-only failed; the skill was not modified.' }
         $installed = (Get-Content -Raw -LiteralPath $versionFile).Trim()
         if ((Read-SemVer $installed) -lt $latest) { throw "Git pull completed but VERSION is still $installed (expected at least $latestText)." }
-        Write-Result $currentText $installed $true 'git-ff-only'
+        Write-Result $currentText $installed $true 'git-ff-only' $true
         exit 0
     }
 }
@@ -101,7 +117,7 @@ try {
         }
         throw
     }
-    Write-Result $currentText $archiveVersion $true 'github-archive' $backup
+    Write-Result $currentText $archiveVersion $true 'github-archive' $true $backup
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
     if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Recurse -Force }

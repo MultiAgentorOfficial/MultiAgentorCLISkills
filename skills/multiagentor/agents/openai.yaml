@@ -1,4 +1,4 @@
 interface:
   display_name: "MultiAgentor"
-  short_description: "Keep MultiAgentor skill and CLI current, then operate RPA"
-  default_prompt: "Use $multiagentor to check and update the skill and CLI, verify my platform, then guide login, browser and script selection, task creation, supervised execution, and result collection."
+  short_description: "Self-check MultiAgentor, guide proxy choices, and run RPA"
+  default_prompt: "Use $multiagentor to self-check and update the skill and CLI, verify my platform, guide login plus browser/proxy and script choices, supervise execution, collect results, and give me a safe repeat-run prompt."

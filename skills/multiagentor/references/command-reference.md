@@ -14,7 +14,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File <installed-skill>\script
 sh <installed-skill>/scripts/update-skill.sh
 ```
 
-The updater compares strict SemVer with the official GitHub `main` branch. A clean Git checkout receives `git pull --ff-only`; a standalone installation receives a validated archive replacement with a timestamped backup. It refuses to overwrite a dirty Git worktree. When JSON reports `restart_required: true`, stop and start a new agent task before using the updated skill.
+The updater first checks critical local files and returns `integrity_ok`. It then compares strict SemVer with the official GitHub `main` branch. A clean Git checkout receives `git pull --ff-only`; a standalone installation with a newer version or failed integrity receives a validated archive replacement with a timestamped backup. It refuses to overwrite a dirty Git worktree. When JSON reports `restart_required: true`, stop and start a new agent task before using the updated skill.
 
 For a global npm-managed CLI, compare and update through the packaged helper:
 
@@ -130,7 +130,7 @@ Use this order for a new automation:
 
 1. Authenticate with `auth oauth` and wait for success.
 2. List existing browser environments with `--json browser list`.
-3. Ask whether to use an existing environment or create one. If the list is empty or creation is chosen, inspect `--json browser systems`, then use `browser quick-create` and capture its browser ID.
+3. Ask whether to use an existing environment or create one. If creation is chosen, inspect `--json browser systems`, then always ask whether the new environment needs a proxy. Use `browser quick-create` only for no-proxy creation while live help states that it disables proxy. If proxy is required and no proxy-aware CLI command exists, use an existing proxy-configured environment or guide platform UI creation and rediscover the ID.
 4. Discover and choose a script, then call `script execute-detail` and resolve execution parameters.
 5. Show the resolved browser, script, parameters, and task name; ask whether to create-and-run, create-only, or return to modify.
 6. Create the remote task with the chosen browser ID and script ID only after that choice.
@@ -159,7 +159,7 @@ multiagentor-cli --json browser list [--search <text>] [--page 1] [--size 10]
 multiagentor-cli browser quick-create --name <name> --system-os <os> --system-version <version[,version...]>
 ```
 
-Quick create requires a non-empty name up to 100 characters, a system OS returned by `browser systems`, and 1-20 comma-separated versions. The server fixes the browser kernel to Chrome 148.
+Quick create requires a non-empty name up to 100 characters, a system OS returned by `browser systems`, and 1-20 comma-separated versions. Current live help says it disables proxy/data sync/dynamic fingerprint defaults. Therefore ask for proxy mode before mutation and never use this command when the user selected a proxy. Recheck live help in case a newer CLI exposes proxy-aware creation.
 
 ## Remote tasks and cached runnable payloads
 
@@ -206,6 +206,13 @@ Starting a run is not completing a run. Unless the user explicitly requests back
    - Read and summarize the result content for the agent. Do not stop after reporting a file path. For large outputs, report schema, counts, key findings, and representative records while linking or naming the full artifact.
    - If the process reports success but no usable result can be found, state that explicitly and inspect logs instead of inventing output.
 8. Return the final status, progress, collected result summary, and artifact paths. A waited run is not complete from the agent's perspective until result collection finishes.
+9. Emit one copyable repeat-run prompt. Include stable task ID/name, safe effective context mode/parameters, Skill and CLI self-check/update, terminal-state waiting, and result reading. Exclude the old run ID, secrets, proxy credentials, and transient paths. Require pre-run confirmation for repeatable external side effects. For `run execute`, reference a durable task file or ask for the JSON again.
+
+Suggested shape:
+
+```text
+使用 $multiagentor。先自检并升级 MultiAgentor Skill 和 npm 管理的 CLI；如果 Skill 被升级，请提示我新建任务后继续。然后运行已有任务“<task-name>”（task ID: <task-id>），使用<已保存参数／以下本次参数：...>。等待运行到最终状态，读取实际结果文件并总结结果。不要复用旧 run ID。需要的密码、Token 或代理凭据请在运行前向我安全询问。<如果可能产生重复外部操作，请在启动前再次确认。>
+```
 
 Only an explicit user instruction such as “启动后不用等待” permits returning while the run remains active. In that mode, return the task/run IDs, last state, and commands for `run get` and `run logs`.
 

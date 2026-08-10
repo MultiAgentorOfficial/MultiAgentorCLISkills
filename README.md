@@ -10,12 +10,15 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 
 - Installs or selects one stable `multiagentor-cli` invocation.
 - Checks the skill's GitHub SemVer and the CLI's npm `latest` version before a workflow, then updates supported installations automatically.
+- Self-checks critical Skill files and repairs incomplete standalone installations from the official archive.
 - Guides OAuth login and configuration checks.
 - Discovers real script, browser, task, and run candidates before asking for IDs.
 - Searches personal scripts first (`script my`) and falls back to the full market (`script list`) when needed.
 - Reads a script's parameter metadata before creating a task.
 - Uses shell-safe UTF-8 JSON files for custom execution parameters.
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
+- Asks whether a newly created browser environment should use a proxy; current `quick-create` is used only for no-proxy environments.
+- After a waited run, reads the result and emits a redacted, copyable prompt for repeating the same task.
 - Requests confirmation before destructive or potentially duplicative actions.
 
 The skill guides Codex or WorkBuddy; the CLI performs the actual automation. Installing the skill does **not** install the CLI or browser runtime immediately.
@@ -204,7 +207,7 @@ The skill and CLI use separate versions:
 - `skills/multiagentor/VERSION` identifies the skill release.
 - npm's `multiagentor-cli@latest` dist-tag identifies the current CLI release.
 
-At the start of each new MultiAgentor workflow, the skill checks its official GitHub `VERSION`. A newer version is pulled with `git pull --ff-only` for a clean checkout, or installed from a validated GitHub archive for a standalone skill directory. Standalone updates retain a timestamped sibling backup and roll back if replacement fails. Dirty Git worktrees are never overwritten.
+At the start of each new MultiAgentor workflow, the skill checks critical local files and its official GitHub `VERSION`. A newer version is pulled with `git pull --ff-only` for a clean checkout; an incomplete or outdated standalone skill is repaired from a validated GitHub archive. Standalone updates retain a timestamped sibling backup and roll back if replacement fails. Dirty Git worktrees are never overwritten.
 
 After a skill replacement, start a new Codex or WorkBuddy task so the new `SKILL.md` is loaded. The same workflow then checks npm-managed CLI installations and installs the exact npm `latest` version when it differs. Portable bootstraps also upgrade their isolated CLI cache. Offline bundles, local tarballs, pinned packages, and custom executors are not silently converted to npm installations.
 

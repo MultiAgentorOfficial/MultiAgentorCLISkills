@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Version-check, update, install, guide, and operate MultiAgentor skill and CLI on supported Windows and Apple Silicon macOS hosts for login, browser selection or creation, personal and market script discovery, remote task CRUD, supervised local execution, result collection, logs, cancellation, and configuration. Use whenever a user asks to install, update, or use multiagentor-cli, browse or run an RPA automation even when the CLI is absent, supplies partial parameters, needs help choosing a browser/script/task, or reports a CLI/run failure. For new automations: update the skill and CLI first, authenticate, choose or create a browser, find a personal or market script, resolve parameters, create a task, then run and supervise it to a terminal state unless the user explicitly asks not to wait. Detect the host platform, discover live candidates, infer safe defaults, and ask focused choice-based questions instead of requiring commands, flags, or IDs."
+description: "Self-check, repair, update, install, guide, and operate MultiAgentor skill and CLI on Windows and Apple Silicon macOS for login, browser/proxy environment choices, script discovery, task CRUD, supervised execution, result collection, repeat-run prompts, logs, cancellation, and configuration. Use when a user asks to install, update, or use multiagentor-cli; run RPA even when the CLI is absent; choose a browser, proxy mode, script, or task; repeat a completed task; or diagnose a failure. For new automations: update the skill and CLI, authenticate, resolve browser and proxy mode, choose a personal or market script and parameters, create a task, then supervise it to a terminal state unless the user explicitly asks not to wait. Discover live candidates and ask focused choice-based questions instead of requiring flags or IDs."
 ---
 
 # MultiAgentor
@@ -25,14 +25,14 @@ Read [references/command-reference.md](references/command-reference.md) when ass
 
 Treat skill version and CLI version as independent.
 
-1. Read this installed skill's `VERSION`, then run its OS updater once at the start of each new MultiAgentor workflow:
+1. Run the OS updater once at the start of each new MultiAgentor workflow. It self-checks `VERSION`, skill identity, command reference, UI metadata, and updater files before checking GitHub:
    - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <skill>/scripts/update-skill.ps1`
    - macOS: `sh <skill>/scripts/update-skill.sh`
-2. The updater checks the official `MultiAgentorOfficial/MultiAgentorCLISkills` repository. When a newer strict SemVer exists, update immediately as the user requested:
+2. The updater checks the official `MultiAgentorOfficial/MultiAgentorCLISkills` repository. When a newer strict SemVer exists—or a standalone installation fails integrity checks—update or repair immediately as the user requested:
    - In a clean Git worktree, use `git pull --ff-only origin main`.
    - In a standalone installed skill, download the official GitHub archive, validate `VERSION` and `name: multiagentor`, stage beside the installation, retain a timestamped backup, and atomically replace the directory with rollback on failure.
 3. Never discard local modifications or force/reset a Git worktree. If it is dirty, report the newer version and stop for user direction.
-4. If `updated` and `restart_required` are true, report old/new versions and backup path, then end the current workflow. Ask the user to start a new Codex/WorkBuddy task; the currently loaded skill text remains in agent context and must not be treated as refreshed.
+4. Inspect the updater JSON. Require `integrity_ok: true`. If `updated` and `restart_required` are true, report old/new versions and backup path, then end the current workflow. Ask the user to start a new Codex/WorkBuddy task; the currently loaded skill text remains in agent context and must not be treated as refreshed.
 5. If the check cannot reach GitHub, report that freshness is unverified. Do not claim the skill is current. Continue with the installed skill only when the user allows offline continuation or the active request already explicitly permits it.
 6. Do not run the updater repeatedly within one workflow and never update while a local RPA run is active.
 
@@ -132,7 +132,14 @@ Default to **start and wait**. A successful process launch, created task ID, cre
    - Read the result contents, not merely their paths. For large artifacts, inspect enough of their schema, summary, counts, and representative records to accurately describe the outcome; offer the exact path for full data. Never dump secrets, cookies, tokens, or excessive raw records.
    - Return the collected result to the current agent context, summarize what the automation produced, and answer the user's original goal from that result. Treat “run succeeded but result was not read” as incomplete.
 8. Report the final status, progress, collected result summary, and relevant artifact paths. If the run succeeded but no usable result exists, say so explicitly, inspect the logs for why, and do not invent a result.
-9. Only in **start without waiting** mode may the session end while the run is active. Report the task ID, run ID when available, last observed state, and exact status/log commands so the user can return later.
+9. After any waited run reaches terminal state and result collection finishes, produce one **copyable repeat-run prompt** for the user:
+   - Write it as a natural-language request to `$multiagentor`, not merely a shell command.
+   - Include the stable task ID and human-readable task name, the saved/default versus one-run context mode, safe effective parameters needed to reproduce the run, the instruction to wait for terminal state, and the instruction to read and summarize results.
+   - Start with Skill/CLI self-check and upgrade. If the Skill updates, instruct the future agent to continue in a new task after reload.
+   - Exclude the previous run ID, tokens, cookies, proxy credentials, passwords, temporary files, and transient log/result paths. Replace required secrets with “ask me securely before running”.
+   - If repeating could submit, purchase, message, upload, mutate data, or cause another external side effect, require confirmation immediately before the repeated run.
+   - For `run execute`, include a durable task-file path only when it is expected to remain available; otherwise instruct the agent to ask the user to provide the task JSON again.
+10. Only in **start without waiting** mode may the session end while the run is active. Report the task ID, run ID when available, last observed state, and exact status/log commands so the user can return later. A repeat-run prompt is optional in this mode because effective results are not yet known.
 
 Never convert start-and-wait into start-without-wait because of expected duration, host tool timeout, sparse output, or the fact that the RPA/browser process is visibly running.
 
@@ -197,9 +204,10 @@ Always give the user a correction or selection opportunity at these checkpoints:
 
 1. After login: use an existing browser environment or create a new one.
 2. Browser resolution: choose the existing browser, or choose the name/OS/version for creation.
-3. Script resolution: choose from at most three ranked real scripts.
-4. Script parameters: use defaults, customize values, or view explanations.
-5. Final task summary: create and run now, create without running, or return to modify the browser/script/parameters.
+3. Proxy mode for every new browser environment: create without proxy, or configure/use a proxy-enabled environment.
+4. Script resolution: choose from at most three ranked real scripts.
+5. Script parameters: use defaults, customize values, or view explanations.
+6. Final task summary: create and run now, create without running, or return to modify the browser/script/parameters.
 
 Put the recommended option first and explain its effect in one sentence. Preserve exact IDs but pair them with human-readable names. Do not ask for values that discovery can provide, repeat a decision the user already made explicitly, or add confirmation to read-only commands. Destructive actions still follow the stricter confirmation rules below.
 
@@ -211,9 +219,13 @@ For every new task, resolve the browser immediately after authentication and bef
 2. If one or more environments exist, explicitly offer:
    1. 使用已有浏览器环境（推荐 when a suitable match exists）— show at most three ranked environments with exact IDs.
    2. 创建新的浏览器环境 — inspect `--json browser systems`, then offer valid OS/version choices.
-3. If no environments exist, state that clearly, run `--json browser systems`, and guide the user to create one with `browser quick-create`. Do not ask the user to provide a browser ID that does not exist, and do not proceed to script selection until creation succeeds.
-4. Derive a short browser name from the target/OS when naming is unimportant; ask only when the user wants a specific name. `quick-create` changes remote state, so show the chosen name, OS, and version immediately before executing it unless the user's request already authorized creation.
-5. Parse the selected or newly created browser ID and retain it for task creation. Never invent an ID.
+3. If no environments exist, state that clearly and run `--json browser systems`. Do not ask the user to provide a browser ID that does not exist, and do not proceed to script selection until creation succeeds.
+4. Before creating any new environment, always ask whether to use a proxy. Present two choices with the best fit first:
+   1. **No proxy** — use `browser quick-create` only after live help confirms it creates with proxy disabled.
+   2. **Set proxy** — inspect live browser help for a supported proxy-aware create/update command. If none exists, do not call `quick-create`; offer an existing proxy-configured browser if discovery exposes one, otherwise guide the user to create/configure the browser in the MultiAgentor platform UI and rerun `--json browser list` afterward.
+5. Never request proxy credentials until a supported secure configuration path is identified. Never print, log, persist in task context, or include proxy username/password/token in the repeat-run prompt. Show only a redacted endpoint or non-secret proxy label when confirmation is needed.
+6. Derive a short browser name from the target/OS when naming is unimportant; ask only when the user wants a specific name. Environment creation changes remote state, so show the chosen name, OS, version, and proxy mode immediately before executing it unless the user's request already authorized those exact values.
+7. Parse the selected or newly created browser ID and retain it for task creation. Never invent an ID.
 
 If the user supplied a browser ID, confirm it appears in discovery results and treat the browser step as resolved. Running an existing task does not require this choice because its cached payload already identifies the browser and script.
 
@@ -274,7 +286,7 @@ Prefer `--script-context-file` whenever creating, updating, refreshing, or runni
 
 1. Verify the CLI invocation, then authenticate with `auth oauth` when needed. Do not continue protected discovery until login succeeds.
 2. Run `--json browser list` and explicitly ask whether to use an existing environment or create a new one when existing environments are available.
-3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, execute `browser quick-create`, and parse the new browser ID.
+3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, and explicitly ask for proxy mode. Execute `browser quick-create` only for the no-proxy choice when live help confirms that behavior. For proxy mode, use only a live-help-supported command or guide platform creation, then rediscover and parse the browser ID.
 4. Discover scripts only after the browser ID is resolved. Search `--json script my` first with the user's business terms as `--name`, `--description`, or `--category` filters; when it has no suitable result, search `--json script list` with the same filters and present market candidates. Do not require a selected market script to appear in both results.
 5. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
 6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. When custom values are chosen, resolve them from the returned metadata, merge them with the defaults that must be preserved, write the complete context to a UTF-8 JSON file, validate it, and use `--script-context-file` before continuing.
@@ -292,7 +304,7 @@ Prefer `--script-context-file` whenever creating, updating, refreshing, or runni
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
 4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target a package-internal native executable under `dist/<platform>/`. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing script core/browser and injecting both paths before the native CLI may execute the task.
 5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, apply **Supervise every started run** and continue until terminal state unless the user explicitly requested start without waiting.
-6. After terminal state, collect and read the result as required by **Supervise every started run**. Report the run ID, final status, progress, result summary, and relevant result/log paths. In explicit start-without-wait mode, report the last observed state and the next inspection commands instead.
+6. After terminal state, collect and read the result as required by **Supervise every started run**. Report the run ID, final status, progress, result summary, relevant result/log paths, and the copyable repeat-run prompt. In explicit start-without-wait mode, report the last observed state and the next inspection commands instead.
 
 ### Diagnose a failed run
 
@@ -352,6 +364,7 @@ When ready to act or hand off, provide:
 - The exact host-shell command or the result of executing it.
 - The created task/run ID when present.
 - After a waited run reaches terminal state, the actual collected result summary and its artifact path, not only the status.
+- After a waited run, one fenced, copyable repeat-run prompt that follows the redaction and side-effect rules above.
 - One next command for status or logs.
 
 Avoid dumping the full command catalog unless the user asks for reference documentation.
