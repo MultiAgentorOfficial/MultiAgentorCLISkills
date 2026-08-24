@@ -2,7 +2,7 @@
 
 > 版本与自检：Skill 与 CLI 使用独立版本。Skill 版本记录在 `skills/multiagentor/VERSION`，CLI 版本以 npm 的 `multiagentor-cli@latest` 为准。每个新的 MultiAgentor 工作流开始时会自检关键文件并检查官方 GitHub Skill 版本；发现新版或普通安装不完整时，直接通过干净 Git 工作区的 `pull --ff-only`，或经过身份/版本校验的 GitHub 压缩包备份、修复并原子替换。Skill 更新后必须新建 Codex/WorkBuddy 任务。随后检查 npm CLI，版本落后时直接升级并验证 `--help`。不会覆盖有本地修改的 Git 工作区，也不会擅自改变离线 bundle、固定版本或自定义执行器的来源。
 
-> 浏览器环境与重复运行：创建新浏览器环境前必须询问是否设置代理。当前 CLI 的 `browser quick-create` 明确关闭代理，因此仅用于“不使用代理”；需要代理时，应选择已有代理环境，或引导用户在 MultiAgentor 平台配置后重新发现。等待任务完成并读取结果后，Agent 会额外生成一段可复制的重复运行提示词，其中包含稳定任务信息和非敏感参数，不包含旧 run ID、密码、Token、代理凭据或临时日志路径。
+> 浏览器环境与重复运行：创建新浏览器环境前必须询问是否设置代理，并根据实时 CLI 帮助使用内联代理或后续环境代理配置。支持把浏览器扩展导出的 Cookie JSON 以 merge/replace 模式导入固定本地 Profile；任务、状态和运行记录保存在本机，并支持 version 1 JSON 原子批量创建。等待任务完成并读取结果后，Agent 会额外生成一段可复制的重复运行提示词，其中包含稳定任务信息和非敏感参数，不包含旧 run ID、Cookie、密码、Token、代理凭据或临时日志路径。
 
 > 平台支持：当前 npm 包支持 Windows x64 与 Apple Silicon macOS（`darwin-arm64`）。Intel Mac、Windows ARM64 和 Linux 暂不支持本地任务执行；skill 会先检查系统与架构，不会尝试不受支持的原生运行时。
 

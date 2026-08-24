@@ -130,10 +130,10 @@ Use this order for a new automation:
 
 1. Authenticate with `auth oauth` and wait for success.
 2. List existing browser environments with `--json browser list`.
-3. Ask whether to use an existing environment or create one. If creation is chosen, inspect `--json browser systems`, then always ask whether the new environment needs a proxy. Use `browser quick-create` only for no-proxy creation while live help states that it disables proxy. If proxy is required and no proxy-aware CLI command exists, use an existing proxy-configured environment or guide platform UI creation and rediscover the ID.
+3. Ask whether to use an existing environment or create one. If creation is chosen, inspect `--json browser systems`, then always ask whether the new environment needs a proxy. When live help exposes inline proxy flags, use them for proxy-enabled `browser quick-create`; otherwise use a supported alternative and rediscover the ID.
 4. Discover and choose a script, then call `script execute-detail` and resolve execution parameters.
 5. Show the resolved browser, script, parameters, and task name; ask whether to create-and-run, create-only, or return to modify.
-6. Create the remote task with the chosen browser ID and script ID only after that choice.
+6. Assemble a complete runnable task JSON and create the local task only after that choice.
 7. Parse the returned task ID and execute it with `run start` only when immediate execution was selected.
 
 Do not reorder browser and script selection for a new task. Existing-task runs may go directly to `run start` because the cached task payload already contains both bindings.
@@ -156,27 +156,40 @@ For task creation, search `script my` first and fall back to `script list` when 
 ```powershell
 multiagentor-cli --json browser systems
 multiagentor-cli --json browser list [--search <text>] [--page 1] [--size 10]
-multiagentor-cli browser quick-create --name <name> --system-os <os> --system-version <version[,version...]>
+multiagentor-cli browser quick-create --name <name> --system-os <os> --system-version <version[,version...]> [--proxy-mode no|merge] [proxy flags]
+multiagentor-cli browser proxy --id <browserId> --proxy-mode <no|merge> [proxy flags]
+multiagentor-cli browser cookie-import --id <browserId> --file <cookies.json> [--mode merge|replace]
 ```
 
-Quick create requires a non-empty name up to 100 characters, a system OS returned by `browser systems`, and 1-20 comma-separated versions. Current live help says it disables proxy/data sync/dynamic fingerprint defaults. Therefore ask for proxy mode before mutation and never use this command when the user selected a proxy. Recheck live help in case a newer CLI exposes proxy-aware creation.
+Quick create requires a non-empty name up to 100 characters, a system OS returned by `browser systems`, and 1-20 comma-separated versions. Current live help defaults to no proxy and accepts an inline HTTP or SOCKS5 proxy in merge mode. `browser proxy` updates/removes the remote environment proxy without changing its other settings.
 
-## Remote tasks and cached runnable payloads
+Cookie import accepts a browser-extension UTF-8 JSON array; use live help for current limits. Default `merge` preserves unrelated Cookies; `replace` clears existing profile Cookies first. The command prepares the required runtime automatically. Cookie data remains only in that machine's persistent browser Profile and is not uploaded or stored in SQLite.
+
+## Local tasks and complete runnable payloads
 
 ```powershell
-multiagentor-cli task create --name <name> --browser-id <browserId> --script-id <scriptId> [--type local] [--script-context <json> | --script-context-file <path>]
-multiagentor-cli task create --file <json> [--script-context <json> | --script-context-file <path>]
-multiagentor-cli task update --id <taskId> --name <name> --browser-id <browserId> --script-id <scriptId> [--type local] [--script-context <json> | --script-context-file <path>]
-multiagentor-cli task update --id <taskId> --file <json> [--script-context <json> | --script-context-file <path>]
+multiagentor-cli task create --file <task.json>
+multiagentor-cli task create-batch --file <tasks.json>
+multiagentor-cli task update --id <taskId> --file <task.json>
 multiagentor-cli --json task list [--page 1] [--size 20]
 multiagentor-cli task get --id <taskId> [--full]
-multiagentor-cli task refresh --id <taskId> [--script-context <json> | --script-context-file <path>]
+multiagentor-cli task refresh --id <taskId> --file <task.json>
 multiagentor-cli task delete --id <taskId>
 ```
 
-Create/update call the remote task API, fetch `/cli`, and cache the runnable payload in SQLite. List only syncs summaries. A context object is the direct optional `/cli` request body. Omit context flags to use script defaults; explicitly pass `{}` to clear defaults.
+Task definitions, status, and run records are local-only. Create/update/refresh validate complete runnable UTF-8 task objects and make no network request. Batch input is `{ "version": 1, "tasks": [...] }`; all items are committed in one SQLite transaction or none are. Historical local tasks that already cache a complete payload retain their IDs; a task missing payload must be refreshed from a complete local task file before execution.
 
-Create a UTF-8 context file and prefer `--script-context-file` for task creation and other context-bearing operations on both platforms. This avoids PowerShell 5.1 quote loss and zsh/bash quoting mistakes. Preserve the complete `options`/`vars` object from `execute-detail` when overriding one value.
+Preserve the complete execution envelope when changing one field. For reusable changes, edit `payload.context` inside the complete task file and update/refresh it. For one-run overrides, use `run start --script-context-file`; omission uses the saved context and explicit `{}` clears it.
+
+## Local browser proxy precedence
+
+```powershell
+multiagentor-cli config proxy set [--environment-id <id>] --protocol <http|https|socks5> --host <host> --port <1-65535> [credentials]
+multiagentor-cli config proxy show [--environment-id <id>]
+multiagentor-cli config proxy clear [--environment-id <id>]
+```
+
+An environment-specific local proxy replaces the default local proxy for that environment. Without either, the task's own top-level proxy is preserved. The selected local proxy replaces the complete task proxy immediately before execution and affects browser traffic only—not OAuth, API, npm, or runtime downloads. Never expose stored credentials; `show` masks passwords.
 
 ## Local runs
 
@@ -189,7 +202,7 @@ multiagentor-cli run logs --run-id <runId>
 multiagentor-cli run cancel --run-id <runId>
 ```
 
-`run start` normally uses the cached payload. A supplied context is fetched for that run only. `run execute` validates and preserves one UTF-8 JSON object, writes it under `<multiagentor-data>/direct-runs/<runId>/`, and creates no remote task or SQLite task/run record. `<multiagentor-data>` is `%APPDATA%\multiagentor` on Windows and `~/Library/Application Support/multiagentor` on macOS unless overridden by `MULTIAGENTOR_HOME`.
+`run start` normally uses the cached payload. A supplied context changes only that in-memory run. `run execute` validates and preserves one UTF-8 JSON object, writes it under `<multiagentor-data>/direct-runs/<runId>/`, and creates no SQLite task/run record. Pass `--environment-id <id>` to reuse and exclusively lock that environment's fixed local UserData Profile. Runs sharing an environment cannot overlap; different environments may run concurrently. `<multiagentor-data>` is `%APPDATA%\multiagentor` on Windows and `~/Library/Application Support/multiagentor` on macOS unless overridden by `MULTIAGENTOR_HOME`; different roots/login identities isolate profiles.
 
 Starting a run is not completing a run. Unless the user explicitly requests background/start-only behavior, keep the agent session active until `run get --full` or the foreground launcher reports a terminal state. If foreground waiting is unsuitable for the host:
 

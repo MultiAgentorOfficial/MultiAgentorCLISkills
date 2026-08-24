@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Self-check, repair, update, install, guide, and operate MultiAgentor skill and CLI on Windows and Apple Silicon macOS for login, browser/proxy environment choices, script discovery, task CRUD, supervised execution, result collection, repeat-run prompts, logs, cancellation, and configuration. Use when a user asks to install, update, or use multiagentor-cli; run RPA even when the CLI is absent; choose a browser, proxy mode, script, or task; repeat a completed task; or diagnose a failure. For new automations: update the skill and CLI, authenticate, resolve browser and proxy mode, choose a personal or market script and parameters, create a task, then supervise it to a terminal state unless the user explicitly asks not to wait. Discover live candidates and ask focused choice-based questions instead of requiring flags or IDs."
+description: "Self-check, repair, update, install, guide, and operate MultiAgentor skill and CLI on Windows and Apple Silicon macOS for login, browser/Cookie/proxy choices, script discovery, local task CRUD and batch import, supervised execution, result collection, repeat-run prompts, logs, cancellation, and configuration. Use when a user asks to install, update, or use multiagentor-cli; run RPA even when the CLI is absent; choose or prepare a browser profile; import extension-exported Cookies; create or run local tasks; repeat a completed task; or diagnose a failure."
 ---
 
 # MultiAgentor
@@ -14,7 +14,7 @@ Turn the user's goal into a valid MultiAgentor CLI workflow. Reduce cognitive lo
 3. Bootstrap or update the CLI before API discovery. Prefer the published npm package when no trusted project bundle is already in scope; follow **Install or select the CLI** below.
 4. Run the selected invocation with `--help` and treat live help as authoritative.
 5. Authenticate before protected discovery. Run `auth oauth` when login is requested, no usable token exists, or a discovery command reports an authentication failure; wait for successful authorization before continuing.
-6. For a new automation, preserve this order: **login → choose/create browser environment → choose script and execution parameters → create task → run task**. Do not select the script before resolving the browser environment.
+6. For a new automation, preserve this order: **login → choose/create and prepare browser environment → choose script and execution parameters → assemble and create the local task → run task**. Do not select the script before resolving the browser environment.
 7. Use read-only discovery commands before asking the user for IDs or supported values.
 8. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
 9. Ask only about missing, ambiguous, or consequential values, except that browser mode selection and task execution parameters are explicit user choices for every new task. Continue automatically after the answer when the requested action authorizes it.
@@ -154,7 +154,9 @@ Map natural-language requests to these flows:
 | Browse the full script market | `script list` |
 | Choose a script for task execution | `script my`, then `script list` when no suitable personal result exists |
 | Create or choose a browser environment | browser discovery / `quick-create` |
+| Import browser-extension Cookies | `browser cookie-import` |
 | Create a reusable automation task | task creation |
+| Import several reusable tasks | `task create-batch` |
 | Run an existing task | `run start` |
 | Run an already assembled task JSON | `run execute` |
 | Inspect failure or progress | run list/get/log files |
@@ -204,10 +206,11 @@ Always give the user a correction or selection opportunity at these checkpoints:
 
 1. After login: use an existing browser environment or create a new one.
 2. Browser resolution: choose the existing browser, or choose the name/OS/version for creation.
-3. Proxy mode for every new browser environment: create without proxy, or configure/use a proxy-enabled environment.
-4. Script resolution: choose from at most three ranked real scripts.
-5. Script parameters: use defaults, customize values, or view explanations.
-6. Final task summary: create and run now, create without running, or return to modify the browser/script/parameters.
+3. Proxy mode for every new browser environment: no proxy, inline environment proxy, or an applicable local default/environment-specific execution proxy.
+4. Optional Cookie preparation when the user needs an existing login/session: skip, merge imported Cookies, or replace profile Cookies.
+5. Script resolution: choose from at most three ranked real scripts.
+6. Script parameters: use defaults, customize values, or view explanations.
+7. Final task summary: create and run now, create without running, or return to modify the browser/script/parameters.
 
 Put the recommended option first and explain its effect in one sentence. Preserve exact IDs but pair them with human-readable names. Do not ask for values that discovery can provide, repeat a decision the user already made explicitly, or add confirmation to read-only commands. Destructive actions still follow the stricter confirmation rules below.
 
@@ -220,14 +223,21 @@ For every new task, resolve the browser immediately after authentication and bef
    1. 使用已有浏览器环境（推荐 when a suitable match exists）— show at most three ranked environments with exact IDs.
    2. 创建新的浏览器环境 — inspect `--json browser systems`, then offer valid OS/version choices.
 3. If no environments exist, state that clearly and run `--json browser systems`. Do not ask the user to provide a browser ID that does not exist, and do not proceed to script selection until creation succeeds.
-4. Before creating any new environment, always ask whether to use a proxy. Present two choices with the best fit first:
-   1. **No proxy** — use `browser quick-create` only after live help confirms it creates with proxy disabled.
-   2. **Set proxy** — inspect live browser help for a supported proxy-aware create/update command. If none exists, do not call `quick-create`; offer an existing proxy-configured browser if discovery exposes one, otherwise guide the user to create/configure the browser in the MultiAgentor platform UI and rerun `--json browser list` afterward.
+4. Before creating any new environment, always ask whether to use a proxy. Inspect live help, then present supported choices. When supported, `browser quick-create` defaults to `--proxy-mode no` and accepts an inline HTTP/SOCKS5 proxy with `--proxy-mode merge`; `browser proxy` can later update or remove that remote environment's proxy.
 5. Never request proxy credentials until a supported secure configuration path is identified. Never print, log, persist in task context, or include proxy username/password/token in the repeat-run prompt. Show only a redacted endpoint or non-secret proxy label when confirmation is needed.
 6. Derive a short browser name from the target/OS when naming is unimportant; ask only when the user wants a specific name. Environment creation changes remote state, so show the chosen name, OS, version, and proxy mode immediately before executing it unless the user's request already authorized those exact values.
 7. Parse the selected or newly created browser ID and retain it for task creation. Never invent an ID.
 
 If the user supplied a browser ID, confirm it appears in discovery results and treat the browser step as resolved. Running an existing task does not require this choice because its cached payload already identifies the browser and script.
+
+### Prepare persistent browser state
+
+Each browser environment ID maps to one fixed local UserData Profile. Later tasks using that ID reuse its Cookies and browser state; different data roots or login identities remain isolated.
+
+- When the user supplies browser-extension Cookie JSON, inspect `browser cookie-import --help`, validate that the file exists and is a UTF-8 JSON array, then ask for `merge` or `replace` unless already specified. `merge` is the safe default and preserves unrelated Cookies; `replace` clears existing profile Cookies first and requires a clear consequence statement.
+- Run `browser cookie-import --id <browserId> --file <cookies.json> [--mode merge|replace]` only through the resolved npm/portable launcher. Let it prepare the current script core and browser runtime. Cookie contents stay in the current machine's profile and are not uploaded or stored in the CLI database; never print or copy them into task JSON, logs, repeat prompts, or commits.
+- Distinguish remote environment proxy commands (`browser quick-create` / `browser proxy`) from local execution proxy overrides (`config proxy`). A local environment-specific proxy overrides the local default; without either, preserve the task payload's own proxy. Before setting or clearing a working local proxy, show the scope and consequence and ask for confirmation. Never expose stored credentials; `config proxy show` masks passwords.
+- The local proxy affects browser traffic only, not OAuth, API, npm, or runtime downloads.
 
 ### Rank candidates
 
@@ -276,9 +286,9 @@ Offer these choices when context behavior matters:
 
 1. 使用脚本默认参数（推荐）— omit both context flags.
 2. 本次自定义参数 — use `run start --script-context...`; do not alter the cached task payload.
-3. 保存自定义参数到任务 — use task create/update/refresh with context so the runnable payload is refreshed locally.
+3. 保存自定义参数到任务 — replace `payload.context` in a complete local task JSON and use `task create`, `task update`, or `task refresh` with `--file`.
 
-Prefer `--script-context-file` whenever creating, updating, refreshing, or running with custom context. Write the complete context as UTF-8, validate that its top level is an object, and pass the file path. This is mandatory by default on Windows PowerShell 5.1 because it can remove embedded quotes; it is also the safest cross-platform form on macOS shells. Use inline `--script-context` only when the user explicitly requires it and the active shell's quoting has been verified. Send the object directly; never wrap it in `{ "context": ... }`.
+For task create/update/refresh, write the complete runnable task object as UTF-8 JSON and pass `--file`; do not pass obsolete task-construction or context flags. For a one-run context override, prefer `run start --script-context-file`, validate a top-level object, and preserve the full `options`/`vars` structure.
 
 ## Workflow recipes
 
@@ -286,21 +296,22 @@ Prefer `--script-context-file` whenever creating, updating, refreshing, or runni
 
 1. Verify the CLI invocation, then authenticate with `auth oauth` when needed. Do not continue protected discovery until login succeeds.
 2. Run `--json browser list` and explicitly ask whether to use an existing environment or create a new one when existing environments are available.
-3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, and explicitly ask for proxy mode. Execute `browser quick-create` only for the no-proxy choice when live help confirms that behavior. For proxy mode, use only a live-help-supported command or guide platform creation, then rediscover and parse the browser ID.
+3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, and explicitly ask for proxy mode. Use live-help-supported `browser quick-create` inline proxy flags when selected; otherwise create without proxy or guide a supported alternative, then rediscover and parse the browser ID.
 4. Discover scripts only after the browser ID is resolved. Search `--json script my` first with the user's business terms as `--name`, `--description`, or `--category` filters; when it has no suitable result, search `--json script list` with the same filters and present market candidates. Do not require a selected market script to appear in both results.
 5. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
-6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. When custom values are chosen, resolve them from the returned metadata, merge them with the defaults that must be preserved, write the complete context to a UTF-8 JSON file, validate it, and use `--script-context-file` before continuing.
+6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. Resolve a complete execution payload from live output, preserve all required envelope fields, merge custom values into `payload.context`, and validate the resulting complete UTF-8 task JSON.
 7. Derive a short task name from the chosen script and target; ask only if naming matters to the user.
-8. Use task type `local` unless live help or the user requires another supported type.
-9. Show a compact summary: browser, script, task name, chosen execution parameters/context mode, and proposed execution behavior.
-10. Offer a final choice: 创建并立即运行（recommended when the user asked to run）、仅创建任务、返回修改选择. This is the correction checkpoint before task creation; do not create until it is resolved.
-11. Create the task when chosen and parse the returned task ID rather than asking the user to copy it manually.
-12. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution. Apply **Supervise every started run**: remain in the session until terminal state unless the user explicitly selected start without waiting. If the user chose create-only, report the task ID and the exact later run command.
+8. Show a compact summary: browser, script, task name, chosen execution parameters/context mode, and proposed execution behavior.
+9. Offer a final choice: 创建并立即运行（recommended when the user asked to run）、仅创建任务、返回修改选择. This is the correction checkpoint before task creation; do not create until it is resolved.
+10. Create the task with `task create --file <task.json>` and parse the generated local task ID rather than asking the user to copy it manually. This makes no network request.
+11. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution. Apply **Supervise every started run**: remain in the session until terminal state unless the user explicitly selected start without waiting. If the user chose create-only, report the task ID and the exact later run command.
+
+For a version 1 batch document containing a non-empty `tasks` array of complete runnable task objects, validate every item and use `task create-batch --file <tasks.json>`. Creation is atomic: any validation failure leaves the local database unchanged.
 
 ### Run an existing task
 
 1. If no task ID is given, list tasks and offer up to three matches.
-2. Default to the cached payload when the user did not request a parameter override.
+2. Read `task get --id <id> --full`. Default to its cached complete payload when the user did not request a parameter override. Historical tasks with a complete cached payload retain their IDs; if payload is missing, require a complete local task JSON and repair it with `task refresh --id <id> --file <task.json>` before running.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
 4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target a package-internal native executable under `dist/<platform>/`. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing script core/browser and injecting both paths before the native CLI may execute the task.
 5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, apply **Supervise every started run** and continue until terminal state unless the user explicitly requested start without waiting.
@@ -330,7 +341,7 @@ Read-only discovery does not need confirmation. Respect the user's explicit requ
 
 Ask for explicit confirmation immediately before:
 
-- `task delete`, because it deletes the remote task, local mirror, runs, and logs.
+- `task delete`, because it deletes the local task, its runs, and logs after checking for active runs.
 - `auth logout`, because it clears the local token.
 - `run cancel`, unless the user explicitly asked to stop that run.
 - `config set`, when it replaces a working endpoint, database, or executor.
@@ -342,12 +353,13 @@ Show the exact target ID/value and consequence in the confirmation. Never print 
 
 - Put global `--json` before the command: `multiagentor-cli --json task list`.
 - Quote values containing spaces or shell metacharacters using the active shell's native quoting; never paste PowerShell syntax into zsh/bash or vice versa.
-- For task create/update/refresh and context-overridden runs, default to a UTF-8 JSON file plus `--script-context-file`; do not first attempt inline JSON and fall back only after quote corruption.
+- For `task create`, `task update`, and `task refresh`, require `--file` containing a complete runnable UTF-8 task JSON. Use `task create-batch --file` only for a version 1 object with a non-empty `tasks` array.
 - Preserve the full `options` and `vars` structure returned by `execute-detail` when changing one field, unless the script documentation explicitly supports a partial context.
 - In Windows PowerShell 5.1, prefer `--task-file <path>` over stdin for non-ASCII JSON. If stdin is required, set `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)` first.
 - Parse returned JSON with `ConvertFrom-Json` on PowerShell or a real JSON parser on macOS; do not scrape IDs from formatted tables.
-- Do not use `run execute` when the user expects a remote task or local SQLite run record; it creates neither.
-- Do not assume `task list` caches runnable `/cli` payloads. Use create/update/refresh for that.
+- Do not use `run execute` when the user expects a reusable local task or SQLite run record; it creates neither.
+- When live help describes local-only task storage, treat tasks, task state, and run records as local-only. Do not claim task CRUD calls a remote task API.
+- Do not start concurrent runs for the same browser environment ID. Different environment IDs may run concurrently. `run execute` should use `--environment-id` when persistent profile reuse and locking are required.
 
 ## Response shape
 

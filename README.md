@@ -17,7 +17,9 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 - Reads a script's parameter metadata before creating a task.
 - Uses shell-safe UTF-8 JSON files for custom execution parameters.
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
-- Asks whether a newly created browser environment should use a proxy; current `quick-create` is used only for no-proxy environments.
+- Asks whether a newly created browser environment should use a proxy and uses live CLI support for inline or later environment proxy configuration.
+- Imports browser-extension Cookie JSON in merge or replace mode into the environment's persistent local profile without placing Cookie data in tasks or remote storage.
+- Creates, updates, and refreshes complete runnable tasks locally; supports atomic version 1 batch creation and fixed-profile concurrency rules.
 - After a waited run, reads the result and emits a redacted, copyable prompt for repeating the same task.
 - Requests confirmation before destructive or potentially duplicative actions.
 

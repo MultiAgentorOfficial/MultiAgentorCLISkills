@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "我想跑一个亚马逊商品采集任务，但我不知道脚本 ID、浏览器 ID，也不知道脚本需要哪些参数。帮我操作。",
-      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。根据实时 --help 确认命令后，创建任务时先用 --json script my 查找个人脚本；没有合适结果且当前 CLI 支持时，自动用相同筛选条件回退到 --json script list 搜索完整市场，并允许用户直接选择市场脚本，不强制它同时出现在 script my。基于真实结果推荐不超过三个脚本；选择脚本 ID 后必须调用 execute-detail，展示 scriptContext 中每个可填写参数及默认值/说明，明确询问使用默认参数、自定义填写还是先看说明。自定义时应保留完整 options/vars，生成并校验 UTF-8 JSON 文件，再优先通过 --script-context-file 创建任务。创建前展示浏览器、脚本、参数和任务名摘要，并询问创建后立即运行、仅创建或返回修改；按选择创建并解析 task ID，仅在选择立即运行时用 run start。不得先尝试容易被 Windows PowerShell 破坏引号的内联 JSON。",
+      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。根据实时 --help 确认命令后，先用 --json script my 查找个人脚本；没有合适结果时回退到 --json script list。选择脚本后调用 execute-detail，展示可填写参数并让用户选择默认、自定义或查看说明。保留完整执行 envelope，把自定义值合并到 payload.context，生成并校验完整 UTF-8 任务 JSON。创建前展示摘要并询问创建后立即运行、仅创建或返回修改；按选择使用 task create --file 创建本地任务并解析 task ID，仅在选择立即运行时用 run start。不得使用已经从实时帮助移除的 --name/--browser-id/--script-context 任务创建参数。",
       "files": []
     },
     {
@@ -16,7 +16,7 @@
     {
       "id": 3,
       "prompt": "刚才的任务失败了，顺便把这个任务删掉吧。",
-      "expected_output": "先通过 run list/get/logs 做只读诊断并保护敏感信息；删除前明确展示目标 task ID、会删除远端任务及本地运行和日志的后果，并要求确认，不因含糊的‘这个任务’而猜测 ID。",
+      "expected_output": "先通过 run list/get/logs 做只读诊断并保护敏感信息；删除前明确展示目标 task ID、会删除本地任务及其运行和日志的后果，并要求确认，不因含糊的‘这个任务’而猜测 ID。不得声称会删除远端任务。",
       "files": []
     },
     {
@@ -88,7 +88,7 @@
     {
       "id": 15,
       "prompt": "Create a new browser environment for this collection task. I may need a proxy.",
-      "expected_output": "After platform and browser-system discovery, explicitly ask whether the new environment should use a proxy before creating it. Inspect current browser quick-create help. If live help says quick-create disables proxy, offer no-proxy quick-create and proxy-enabled setup as mutually exclusive choices. Use quick-create only after the user selects no proxy. If proxy is selected, inspect live help for a supported proxy-aware command; if none exists, offer a discovered existing proxy-configured environment or guide the user to configure/create one in the MultiAgentor platform UI, then rerun browser list and parse the real ID. Never claim quick-create set a proxy, and never echo, log, store in task context, or include proxy credentials in later prompts.",
+      "expected_output": "After platform and browser-system discovery, explicitly ask whether the new environment should use a proxy before creating it. Inspect current browser quick-create help. When inline proxy flags are supported, offer no proxy and inline HTTP/SOCKS5 proxy as concrete choices and use the selected flags; browser proxy may update/remove the remote environment proxy later. Also distinguish config proxy default/environment-specific local execution overrides. Never echo, log, store in task context, or include proxy credentials in later prompts.",
       "files": []
     },
     {
@@ -101,6 +101,30 @@
       "id": 17,
       "prompt": "On Apple Silicon macOS the portable bootstrap says no compatible darwin-arm64 Node LTS archive exists, but nodejs.org does publish one.",
       "expected_output": "Diagnose the distinction between Node's index metadata and archive filename. Select a compatible LTS release by requiring the files entry osx-arm64-tar, while constructing and downloading node-<version>-darwin-arm64.tar.gz. Continue to verify that exact archive against the official SHASUMS256.txt before extraction. Do not use darwin-arm64 as the index files filter, do not change the archive filename to osx-arm64-tar, and do not bypass checksum validation.",
+      "files": []
+    },
+    {
+      "id": 18,
+      "prompt": "把浏览器扩展导出的 cookies.json 导入浏览器环境 browser-123，后续任务继续用这个登录状态。",
+      "expected_output": "确认文件存在且是 UTF-8 JSON 数组，使用实时 browser cookie-import --help，并让用户选择 merge 或 replace（未指定时推荐 merge）。解释 merge 保留不冲突 Cookie，replace 会先清除 Profile 现有 Cookie。通过已解析的 npm/portable 启动器执行 browser cookie-import --id browser-123 --file <path> --mode <mode>，允许启动器准备浏览器运行时。说明 Cookie 只留在当前机器该环境的固定 UserData Profile，不上传、不写入任务 JSON/数据库，也不打印内容。",
+      "files": []
+    },
+    {
+      "id": 19,
+      "prompt": "我有 tasks.json，里面是 version 1 和多个完整任务，帮我全部导入。",
+      "expected_output": "验证顶层 version=1、tasks 为非空数组且每项是完整 runnable task JSON，然后使用 task create-batch --file <tasks.json>。说明任务、状态和运行记录保存在本地 SQLite，批量创建在一个事务中原子完成；任一项验证失败时不得留下部分任务。",
+      "files": []
+    },
+    {
+      "id": 20,
+      "prompt": "旧任务 task-old 还在，但 run start 说没有完整 payload。",
+      "expected_output": "先用 task get --id task-old --full 确认兼容性信息。保留旧 ID，不新建替代任务；要求用户提供或定位完整本地任务 JSON，验证后执行 task refresh --id task-old --file <task.json>，再运行。不得尝试从远端任务 API 刷新，也不得使用旧的 context-only refresh 参数。",
+      "files": []
+    },
+    {
+      "id": 21,
+      "prompt": "给所有任务设默认代理，但 browser-a 要用另一个代理；然后同时跑 browser-a 的两个任务和 browser-b 的一个任务。",
+      "expected_output": "区分 browser proxy 与 config proxy：用 config proxy set 设置本地默认代理，再用 --environment-id browser-a 设置环境专属覆盖，并在变更前确认范围且保护凭据。解释环境专属代理整体覆盖默认代理，无 CLI 代理时保留任务自身 proxy。禁止 browser-a 的两个任务并发，因为同一环境必须独占固定 UserData Profile；允许 browser-a 与 browser-b 各一个任务并发。",
       "files": []
     }
   ]
