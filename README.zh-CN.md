@@ -2,7 +2,7 @@
 
 > 版本与自检：Skill 与 CLI 使用独立版本。Skill 版本记录在 `skills/multiagentor/VERSION`，CLI 版本以 npm 的 `multiagentor-cli@latest` 为准。每个新的 MultiAgentor 工作流开始时会自检关键文件并检查官方 GitHub Skill 版本；发现新版或普通安装不完整时，直接通过干净 Git 工作区的 `pull --ff-only`，或经过身份/版本校验的 GitHub 压缩包备份、修复并原子替换。Skill 更新后必须新建 Codex/WorkBuddy 任务。随后检查 npm CLI，版本落后时直接升级并验证 `--help`。不会覆盖有本地修改的 Git 工作区，也不会擅自改变离线 bundle、固定版本或自定义执行器的来源。
 
-> 浏览器环境与重复运行：创建新浏览器环境前必须询问是否设置代理，并根据实时 CLI 帮助使用内联代理或后续环境代理配置。支持把浏览器扩展导出的 Cookie JSON 以 merge/replace 模式导入固定本地 Profile；任务、状态和运行记录保存在本机，并支持 version 1 JSON 原子批量创建。等待任务完成并读取结果后，Agent 会额外生成一段可复制的重复运行提示词，其中包含稳定任务信息和非敏感参数，不包含旧 run ID、Cookie、密码、Token、代理凭据或临时日志路径。
+> 浏览器环境与重复运行：创建新浏览器环境前必须询问是否设置代理，并根据实时 CLI 帮助使用内联代理或后续环境代理配置。支持把浏览器扩展导出的 Cookie JSON 以 merge/replace 模式导入固定本地 Profile，也可通过 `browser launch` 打开服务端环境配置对应的本地浏览器并等待关闭。任务重新由服务端创建和管理，生成的 environment、脚本、代理和执行 payload 缓存在本地；批量创建遇错即停且不会回滚此前成功项。Windows 可自动把受支持的无认证 HTTP 系统代理作为任务代理之前的前置链路。等待任务完成并读取结果后，Agent 会额外生成一段可复制的重复运行提示词，其中不包含旧 run ID、Cookie、密码、Token、代理凭据或临时日志路径。
 
 > 平台支持：当前 npm 包支持 Windows x64 与 Apple Silicon macOS（`darwin-arm64`）。Intel Mac、Windows ARM64 和 Linux 暂不支持本地任务执行；skill 会先检查系统与架构，不会尝试不受支持的原生运行时。
 
@@ -156,7 +156,7 @@ npx.cmd --yes multiagentor-cli@latest --help
 
 如果没有 Node.js 或 npm，技能会按系统选择便携环境引导脚本。Windows x64 使用 `bootstrap-portable-cli.ps1`，安装到 `%APPDATA%\multiagentor\portable-runtime`；Apple Silicon macOS 使用 `bootstrap-portable-cli.sh`，安装到 `~/Library/Application Support/multiagentor/portable-runtime`。两者都从 Node.js 官方源下载 LTS 运行时、完成 SHA-256 校验，不修改系统级 PATH。
 
-npm 安装完成和本地运行环境就绪是两个阶段。npm 包包含各受支持平台的原生 CLI 与 `multi-agentor-script-core`，但不包含浏览器。首次通过正确的 npm 启动器执行 `run start` 或 `run execute` 时，JavaScript 启动器会校验并安装 script core、选择并下载对应平台的浏览器 ZIP、校验大小与 SHA-256、原子解压，并在 macOS 上设置执行权限；全部就绪后才启动任务。不要直接运行 `dist/<platform>/` 下的原生 CLI，否则会绕过这道就绪检查。
+npm 安装完成和本地运行环境就绪是两个阶段。在首次通过正确的 npm 启动器执行 `run start`、`run execute`、`browser cookie-import` 或 `browser launch` 并需要本地浏览器时，JavaScript 启动器会校验并安装 script core、选择并下载对应平台的浏览器 ZIP、校验大小与 SHA-256、原子解压，并在 macOS 上设置执行权限；全部就绪后才继续。不要直接运行 `dist/<platform>/` 下的原生 CLI，否则会绕过这道就绪检查。
 
 ## 使用示例
 

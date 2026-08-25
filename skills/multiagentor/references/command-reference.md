@@ -75,7 +75,7 @@ invocation=$(printf '%s' "$runtime_json" | node -e 'let s="";process.stdin.on("d
 
 The Windows script verifies the official Node.js ZIP and installs under `%APPDATA%\multiagentor\portable-runtime`. The macOS script requires `Darwin arm64`, selects releases using Node's index tag `osx-arm64-tar`, then downloads and verifies the file named `node-<version>-darwin-arm64.tar.gz`; the index tag and archive filename intentionally use different platform names. It installs under `${MULTIAGENTOR_HOME:-$HOME/Library/Application Support/multiagentor}/portable-runtime`. Both bootstraps install the current CLI into an isolated cache, create a reusable native launcher, avoid machine-wide PATH changes, and return JSON containing `invocation`.
 
-The published npm tarball contains `bin/multiagentor-cli.js`, `bin/runtime-manager.js`, platform-native CLI binaries, and matching packaged `multi-agentor-script-core` binaries, but not the browser. npm-generated commands route through `bin/multiagentor-cli.js`. The first npm-launched `run start` or `run execute` installs/verifies script core, downloads and verifies the configured platform browser, sets `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and then starts the native CLI. Data is cached under `%APPDATA%\multiagentor` on Windows or `~/Library/Application Support/multiagentor` on macOS unless `MULTIAGENTOR_HOME` overrides it. Help, authentication, configuration, and remote CRUD do not trigger the browser download.
+The published npm tarball contains `bin/multiagentor-cli.js`, `bin/runtime-manager.js`, platform-native CLI binaries, and matching packaged `multi-agentor-script-core` binaries, but not the browser. npm-generated commands route through `bin/multiagentor-cli.js`. Before `run start`, `run execute`, `browser cookie-import`, or `browser launch` first needs local browser execution, the launcher installs/verifies script core, downloads and verifies the configured platform browser, sets `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and then starts the native CLI. Data is cached under `%APPDATA%\multiagentor` on Windows or `~/Library/Application Support/multiagentor` on macOS unless `MULTIAGENTOR_HOME` overrides it. Help, `version`, authentication, configuration, and remote CRUD do not trigger the browser download.
 
 Never execute a native binary under `node_modules/multiagentor-cli/dist/<platform>/` directly for a local run. It bypasses the JavaScript runtime manager and can fail on a clean machine before script core/browser preparation. Keep one of these launch paths intact:
 
@@ -92,7 +92,7 @@ An extracted full offline bundle is a different artifact: verify its root launch
 
 `npm install` installs the command but does not necessarily download the browser. For local execution, the installed npm launcher must block task startup in this order when its package/runtime metadata requires these components:
 
-1. Check the npm package's native CLI, `multi-agentor-script-core`, and `script-core-manifest.json` for the detected platform key.
+1. Check the npm package's native CLI, `multi-agentor-script-core`, and `script-core-manifest.json` for the detected platform key and required feature capability. System-proxy front chaining requires script-core 0.1.3 containing commit capability `8857620`; reject an incompatible core before browser startup.
 2. Install/reuse script core under `<multiagentor-data>/runtime/<platform>/versions/<hash>/` and apply executable mode on macOS.
 3. Use an existing `MULTIAGENTOR_BROWSER_EXECUTABLE` only when that file exists; otherwise fetch and validate the HTTPS browser manifest.
 4. Reuse a valid cache or download the platform browser ZIP, check declared size and SHA-256, extract atomically, confirm the declared executable, apply mode `0755` on macOS, and update `browsers/current.json`.
@@ -133,7 +133,7 @@ Use this order for a new automation:
 3. Ask whether to use an existing environment or create one. If creation is chosen, inspect `--json browser systems`, then always ask whether the new environment needs a proxy. When live help exposes inline proxy flags, use them for proxy-enabled `browser quick-create`; otherwise use a supported alternative and rediscover the ID.
 4. Discover and choose a script, then call `script execute-detail` and resolve execution parameters.
 5. Show the resolved browser, script, parameters, and task name; ask whether to create-and-run, create-only, or return to modify.
-6. Assemble a complete runnable task JSON and create the local task only after that choice.
+6. Create the remote task and cache its server-generated runnable payload only after that choice.
 7. Parse the returned task ID and execute it with `run start` only when immediate execution was selected.
 
 Do not reorder browser and script selection for a new task. Existing-task runs may go directly to `run start` because the cached task payload already contains both bindings.
@@ -159,27 +159,34 @@ multiagentor-cli --json browser list [--search <text>] [--page 1] [--size 10]
 multiagentor-cli browser quick-create --name <name> --system-os <os> --system-version <version[,version...]> [--proxy-mode no|merge] [proxy flags]
 multiagentor-cli browser proxy --id <browserId> --proxy-mode <no|merge> [proxy flags]
 multiagentor-cli browser cookie-import --id <browserId> --file <cookies.json> [--mode merge|replace]
+multiagentor-cli browser launch --id <browserId>
 ```
 
 Quick create requires a non-empty name up to 100 characters, a system OS returned by `browser systems`, and 1-20 comma-separated versions. Current live help defaults to no proxy and accepts an inline HTTP or SOCKS5 proxy in merge mode. `browser proxy` updates/removes the remote environment proxy without changing its other settings.
 
 Cookie import accepts a browser-extension UTF-8 JSON array; use live help for current limits. Default `merge` preserves unrelated Cookies; `replace` clears existing profile Cookies first. The command prepares the required runtime automatically. Cookie data remains only in that machine's persistent browser Profile and is not uploaded or stored in SQLite.
 
-## Local tasks and complete runnable payloads
+`browser launch` prepares the runtime, applies the server environment configuration, opens the environment's persistent local Profile, and waits until the browser closes. Keep the agent session active while it is open. It is intended for manual login or other user-driven browser preparation.
+
+## Remote tasks and cached runnable payloads
 
 ```powershell
-multiagentor-cli task create --file <task.json>
+multiagentor-cli task create --name <name> --browser-id <browserId> --script-id <scriptId> [--type local] [--script-context <json> | --script-context-file <path>]
+multiagentor-cli task create --file <json> [--script-context <json> | --script-context-file <path>]
 multiagentor-cli task create-batch --file <tasks.json>
-multiagentor-cli task update --id <taskId> --file <task.json>
+multiagentor-cli task update --id <taskId> --name <name> --browser-id <browserId> --script-id <scriptId> [--type local] [--script-context <json> | --script-context-file <path>]
+multiagentor-cli task update --id <taskId> --file <json> [--script-context <json> | --script-context-file <path>]
 multiagentor-cli --json task list [--page 1] [--size 20]
 multiagentor-cli task get --id <taskId> [--full]
-multiagentor-cli task refresh --id <taskId> --file <task.json>
+multiagentor-cli task refresh --id <taskId> [--script-context <json> | --script-context-file <path>]
 multiagentor-cli task delete --id <taskId>
 ```
 
-Task definitions, status, and run records are local-only. Create/update/refresh validate complete runnable UTF-8 task objects and make no network request. Batch input is `{ "version": 1, "tasks": [...] }`; all items are committed in one SQLite transaction or none are. Historical local tasks that already cache a complete payload retain their IDs; a task missing payload must be refreshed from a complete local task file before execution.
+Create/update call the remote task API, then cache the server-generated environment, script, proxy, and runnable payload locally. Refresh reloads the remote task payload. Pure-local tasks created by the transitional local-task release are incompatible and must be recreated as remote tasks.
 
-Preserve the complete execution envelope when changing one field. For reusable changes, edit `payload.context` inside the complete task file and update/refresh it. For one-run overrides, use `run start --script-context-file`; omission uses the saved context and explicit `{}` clears it.
+`task create-batch` performs remote creates in order and stops at the first error. It is not atomic: successful earlier items remain created, while later items are not attempted. Inspect live help for the current batch schema and report partial success IDs if an error occurs.
+
+A context object is the direct optional payload request body. Prefer a UTF-8 `--script-context-file`; omission uses script defaults and explicit `{}` clears them. Preserve the complete `options`/`vars` object when overriding one value.
 
 ## Local browser proxy precedence
 
@@ -190,6 +197,16 @@ multiagentor-cli config proxy clear [--environment-id <id>]
 ```
 
 An environment-specific local proxy replaces the default local proxy for that environment. Without either, the task's own top-level proxy is preserved. The selected local proxy replaces the complete task proxy immediately before execution and affects browser traffic only—not OAuth, API, npm, or runtime downloads. Never expose stored credentials; `show` masks passwords.
+
+On Windows, task runs and `browser launch` may automatically use an unauthenticated HTTP system proxy as a front chain. When both are configured, traffic traverses the system proxy and then the effective task proxy. No new user flag is required. Unsupported or unreachable system proxies fail startup safely rather than silently falling back to direct access. macOS behavior is unchanged.
+
+## Installed CLI version
+
+```powershell
+multiagentor-cli version
+```
+
+Use this command when exposed by live help instead of inferring the version from filenames or the native binary.
 
 ## Local runs
 

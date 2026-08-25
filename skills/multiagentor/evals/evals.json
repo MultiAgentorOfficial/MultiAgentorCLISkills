@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "我想跑一个亚马逊商品采集任务，但我不知道脚本 ID、浏览器 ID，也不知道脚本需要哪些参数。帮我操作。",
-      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。根据实时 --help 确认命令后，先用 --json script my 查找个人脚本；没有合适结果时回退到 --json script list。选择脚本后调用 execute-detail，展示可填写参数并让用户选择默认、自定义或查看说明。保留完整执行 envelope，把自定义值合并到 payload.context，生成并校验完整 UTF-8 任务 JSON。创建前展示摘要并询问创建后立即运行、仅创建或返回修改；按选择使用 task create --file 创建本地任务并解析 task ID，仅在选择立即运行时用 run start。不得使用已经从实时帮助移除的 --name/--browser-id/--script-context 任务创建参数。",
+      "expected_output": "先确认登录，然后按固定顺序操作：先用 --json browser list 发现浏览器环境；有环境时明确询问使用已有环境还是创建新环境，没有环境时读取 browser systems 并引导 quick-create，解析真实 browser ID 后才发现脚本。先用 --json script my 查找个人脚本；没有合适结果时回退到 --json script list。选择脚本后调用 execute-detail，展示参数并让用户选择默认、自定义或查看说明。创建前展示摘要并询问创建后立即运行、仅创建或返回修改；按实时帮助使用 task create 的 browser ID、script ID、name/type 和可选 script-context-file 创建远端任务，解析服务端 task ID 并确认 runnable payload 已缓存，仅在选择立即运行时用 run start。",
       "files": []
     },
     {
@@ -112,19 +112,37 @@
     {
       "id": 19,
       "prompt": "我有 tasks.json，里面是 version 1 和多个完整任务，帮我全部导入。",
-      "expected_output": "验证顶层 version=1、tasks 为非空数组且每项是完整 runnable task JSON，然后使用 task create-batch --file <tasks.json>。说明任务、状态和运行记录保存在本地 SQLite，批量创建在一个事务中原子完成；任一项验证失败时不得留下部分任务。",
+      "expected_output": "先读取实时 task create-batch --help 并按当前 schema 验证文件，再明确说明这是按顺序调用服务端创建、遇到首个错误立即停止的非原子操作。执行后报告每个已成功创建并缓存的远端 task ID、首个失败项及未尝试项；不得承诺回滚或声称数据库保持全空。",
       "files": []
     },
     {
       "id": 20,
       "prompt": "旧任务 task-old 还在，但 run start 说没有完整 payload。",
-      "expected_output": "先用 task get --id task-old --full 确认兼容性信息。保留旧 ID，不新建替代任务；要求用户提供或定位完整本地任务 JSON，验证后执行 task refresh --id task-old --file <task.json>，再运行。不得尝试从远端任务 API 刷新，也不得使用旧的 context-only refresh 参数。",
+      "expected_output": "先用 task get --id task-old --full 确认它是过渡版本创建的纯本地任务。说明该任务与当前远端任务模型不兼容，不能保留原 ID 原地 refresh；重新发现/确认 browser ID、script ID、任务名和上下文，展示摘要与用户选择后通过当前 task create 创建新的远端任务并缓存服务端 payload。报告旧 ID 与新 ID 的映射，不自动删除旧任务。",
       "files": []
     },
     {
       "id": 21,
       "prompt": "给所有任务设默认代理，但 browser-a 要用另一个代理；然后同时跑 browser-a 的两个任务和 browser-b 的一个任务。",
       "expected_output": "区分 browser proxy 与 config proxy：用 config proxy set 设置本地默认代理，再用 --environment-id browser-a 设置环境专属覆盖，并在变更前确认范围且保护凭据。解释环境专属代理整体覆盖默认代理，无 CLI 代理时保留任务自身 proxy。禁止 browser-a 的两个任务并发，因为同一环境必须独占固定 UserData Profile；允许 browser-a 与 browser-b 各一个任务并发。",
+      "files": []
+    },
+    {
+      "id": 22,
+      "prompt": "用浏览器环境 browser-123 打开本地浏览器，我要手动登录，关掉以后你再继续。",
+      "expected_output": "确认 browser-123 是真实环境并通过 npm/portable JavaScript 启动器执行 browser launch --id browser-123。等待启动器准备兼容 script core 和浏览器运行时，使用服务端环境配置及该环境固定 UserData Profile 打开浏览器。保持 Agent 会话直到用户关闭浏览器；不得在浏览器刚打开时结束或误报完成。关闭后确认命令退出，再继续后续步骤。",
+      "files": []
+    },
+    {
+      "id": 23,
+      "prompt": "告诉我当前安装的 MultiAgentor CLI 是什么版本。",
+      "expected_output": "先解析稳定 CLI 启动入口并检查实时帮助；支持时运行 multiagentor-cli version 并返回其输出，不从文件夹名、下载包名或内部原生二进制路径猜版本。该命令不应触发浏览器运行时下载。",
+      "files": []
+    },
+    {
+      "id": 24,
+      "prompt": "Windows 系统里开着 HTTP 代理，任务本身也有代理，启动浏览器应该怎么走？",
+      "expected_output": "说明无需新增参数：启动任务浏览器或 browser launch 时，兼容启动器自动检测无认证 HTTP 系统代理；若同时存在有效任务代理，浏览器流量按系统前置代理再任务代理的顺序连接。要求兼容的 script-core 0.1.3/commit 8857620 能力；不支持的代理类型或无法连接的系统前置代理必须在启动前安全失败，不能静默直连。说明 macOS 行为不变并保护代理凭据。",
       "files": []
     }
   ]

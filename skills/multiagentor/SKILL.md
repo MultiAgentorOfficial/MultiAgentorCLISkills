@@ -1,6 +1,6 @@
 ---
 name: multiagentor
-description: "Self-check, repair, update, install, guide, and operate MultiAgentor skill and CLI on Windows and Apple Silicon macOS for login, browser/Cookie/proxy choices, script discovery, local task CRUD and batch import, supervised execution, result collection, repeat-run prompts, logs, cancellation, and configuration. Use when a user asks to install, update, or use multiagentor-cli; run RPA even when the CLI is absent; choose or prepare a browser profile; import extension-exported Cookies; create or run local tasks; repeat a completed task; or diagnose a failure."
+description: "Self-check, repair, update, install, guide, and operate MultiAgentor skill and CLI on Windows and Apple Silicon macOS for login, browser launch/Cookie/proxy choices, script discovery, remote task management, supervised execution, result collection, repeat-run prompts, logs, cancellation, and configuration. Use when a user asks to install, update, or use multiagentor-cli; open or prepare a browser profile; import extension-exported Cookies; create or run tasks; repeat a completed task; or diagnose a failure."
 ---
 
 # MultiAgentor
@@ -12,9 +12,9 @@ Turn the user's goal into a valid MultiAgentor CLI workflow. Reduce cognitive lo
 1. Restate the intended outcome in one short sentence.
 2. Run the **version-update gate** once before CLI/API discovery. If the skill updates, stop and ask the user to start a new agent task so the new instructions load.
 3. Bootstrap or update the CLI before API discovery. Prefer the published npm package when no trusted project bundle is already in scope; follow **Install or select the CLI** below.
-4. Run the selected invocation with `--help` and treat live help as authoritative.
+4. Run the selected invocation with `version` when exposed and with `--help`; treat live help as authoritative.
 5. Authenticate before protected discovery. Run `auth oauth` when login is requested, no usable token exists, or a discovery command reports an authentication failure; wait for successful authorization before continuing.
-6. For a new automation, preserve this order: **login → choose/create and prepare browser environment → choose script and execution parameters → assemble and create the local task → run task**. Do not select the script before resolving the browser environment.
+6. For a new automation, preserve this order: **login → choose/create and prepare browser environment → choose script and execution parameters → create the remote task and cache its runnable payload → run task**. Do not select the script before resolving the browser environment.
 7. Use read-only discovery commands before asking the user for IDs or supported values.
 8. Build a parameter state table internally: known, discovered, safely defaulted, missing, ambiguous, or consequential.
 9. Ask only about missing, ambiguous, or consequential values, except that browser mode selection and task execution parameters are explicit user choices for every new task. Continue automatically after the answer when the requested action authorizes it.
@@ -96,22 +96,22 @@ Resolve one stable invocation and reuse it for the entire workflow.
    macOS prefix: `npx --yes multiagentor-cli@latest`
 
 8. Do not mix a full-bundle launcher, portable launcher, global npm shim, npx, or a package-internal executable within one workflow unless diagnosing an installation problem. Never shorten a resolved npm/portable invocation to the native Go executable path.
-9. `--help`, auth, config, and remote CRUD do not download the browser. On the first npm-launched `run start` or `run execute`, allow the JavaScript launcher to install the packaged `multi-agentor-script-core`, download the platform browser ZIP, verify size and SHA-256, extract atomically, set executable permissions on macOS, set `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and only then start the native CLI. Do not interrupt this preparation.
+9. `--help`, `version`, auth, config, and remote CRUD do not download the browser. Before an npm-launched `run start`, `run execute`, `browser cookie-import`, or `browser launch` needs local browser execution, allow the JavaScript launcher to install the packaged `multi-agentor-script-core`, download the platform browser ZIP, verify size and SHA-256, extract atomically, set executable permissions on macOS, set `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE`, and only then start the native CLI. Do not interrupt this preparation.
 10. Reuse the cached verified browser on later runs. Accept a user-supplied `MULTIAGENTOR_BROWSER_EXECUTABLE` only when it is an absolute, existing compatible executable. Do not substitute ordinary Chrome or guess a platform-specific executable name.
 
 Installation is an expected prerequisite when the user asks to run an RPA task and no CLI is available. Report the chosen installation method and verified invocation without dumping npm logs.
 
 ### Enforce the runtime-readiness gate
 
-Treat npm installation and local runtime readiness as separate states. `npm install` alone is not proof that a task can run. For every npm/portable `run start` or `run execute`, preserve the installed package's JavaScript launcher as a blocking readiness gate before the Go CLI:
+Treat npm installation and local runtime readiness as separate states. `npm install` alone is not proof that a task or manual browser operation can run. For npm/portable `run start`, `run execute`, `browser cookie-import`, and `browser launch`, preserve the installed package's JavaScript launcher as a blocking readiness gate before the Go CLI:
 
-1. Confirm Node.js 18+, the selected npm/portable launcher, `bin/multiagentor-cli.js`, the current platform's native CLI, packaged `multi-agentor-script-core`, and `script-core-manifest.json` exist. If the installed npm package lacks the detected platform key, stop as unsupported; otherwise repair/reinstall incomplete files before attempting the task.
+1. Confirm Node.js 18+, the selected npm/portable launcher, `bin/multiagentor-cli.js`, the current platform's native CLI, packaged `multi-agentor-script-core`, and `script-core-manifest.json` exist. Require the package/manifest to identify a script core compatible with the current CLI features; releases using the system-proxy chain require script-core 0.1.3 with the capability introduced by commit `8857620`. If the platform key or required capability is absent, stop before launch and repair/update rather than trying an older core.
 2. Let the launcher install/reuse the verified script core under the platform data root: `%APPDATA%\multiagentor\runtime\win32-x64\` on Windows or `~/Library/Application Support/multiagentor/runtime/darwin-arm64/` on macOS (unless `MULTIAGENTOR_HOME` overrides the root).
 3. Let it resolve `MULTIAGENTOR_BROWSER_EXECUTABLE`: honor a supplied executable only if its absolute path exists; otherwise use the browser artifact declared for the current platform, download its ZIP when no valid cache exists, verify declared size and SHA-256, extract atomically, confirm the declared native executable, set mode `0755` on macOS, and update `browsers/current.json`.
 4. Require both resolved script-core and browser paths. The launcher must set `MULTIAGENTOR_SCRIPT_CORE_COMMAND` and `MULTIAGENTOR_BROWSER_EXECUTABLE` before it spawns the native CLI. Do not manually start the native executable while preparation is pending.
 5. If any readiness step fails, stop before task execution, report the platform and failed preparation stage, and offer retry/repair. Do not describe the task as running, create a replacement task, bypass the launcher, or advise disabling macOS security controls globally.
 
-Check live help before assuming a separate runtime-preparation command exists. When none is exposed, treat the readiness gate as the blocking prefix of the first correctly launched `run start` or `run execute`; wait through it and distinguish its preparation messages from task progress. Later runs may reuse a valid cached browser according to the installed launcher's documented cache/fallback behavior.
+Check live help before assuming a separate runtime-preparation command exists. When none is exposed, treat the readiness gate as the blocking prefix of the first correctly launched local-execution command; wait through it and distinguish preparation messages from run or browser progress. Later operations may reuse a valid cached browser according to the installed launcher's documented cache/fallback behavior.
 
 ### Supervise every started run
 
@@ -154,9 +154,10 @@ Map natural-language requests to these flows:
 | Browse the full script market | `script list` |
 | Choose a script for task execution | `script my`, then `script list` when no suitable personal result exists |
 | Create or choose a browser environment | browser discovery / `quick-create` |
+| Open a managed browser manually | `browser launch` |
 | Import browser-extension Cookies | `browser cookie-import` |
 | Create a reusable automation task | task creation |
-| Import several reusable tasks | `task create-batch` |
+| Create several tasks | `task create-batch` |
 | Run an existing task | `run start` |
 | Run an already assembled task JSON | `run execute` |
 | Inspect failure or progress | run list/get/log files |
@@ -238,6 +239,8 @@ Each browser environment ID maps to one fixed local UserData Profile. Later task
 - Run `browser cookie-import --id <browserId> --file <cookies.json> [--mode merge|replace]` only through the resolved npm/portable launcher. Let it prepare the current script core and browser runtime. Cookie contents stay in the current machine's profile and are not uploaded or stored in the CLI database; never print or copy them into task JSON, logs, repeat prompts, or commits.
 - Distinguish remote environment proxy commands (`browser quick-create` / `browser proxy`) from local execution proxy overrides (`config proxy`). A local environment-specific proxy overrides the local default; without either, preserve the task payload's own proxy. Before setting or clearing a working local proxy, show the scope and consequence and ask for confirmation. Never expose stored credentials; `config proxy show` masks passwords.
 - The local proxy affects browser traffic only, not OAuth, API, npm, or runtime downloads.
+- `browser launch --id <browserId>` opens the local managed browser using that environment's server-generated configuration and persistent Profile. Keep the command/session active until the user closes the browser; a successful launch is not completion. Use it when the user wants to log in or operate manually before later tasks.
+- On Windows, let the launcher automatically detect a supported unauthenticated HTTP system proxy. When both a system proxy and task/effective proxy exist, browser traffic chains through the system proxy first and the task proxy second. Do not add invented flags, silently bypass an unsupported or unreachable system proxy, or claim fallback to direct access; startup must fail safely. macOS behavior is unchanged.
 
 ### Rank candidates
 
@@ -286,9 +289,9 @@ Offer these choices when context behavior matters:
 
 1. 使用脚本默认参数（推荐）— omit both context flags.
 2. 本次自定义参数 — use `run start --script-context...`; do not alter the cached task payload.
-3. 保存自定义参数到任务 — replace `payload.context` in a complete local task JSON and use `task create`, `task update`, or `task refresh` with `--file`.
+3. 保存自定义参数到任务 — use `task create`, `task update`, or `task refresh` with context so the server regenerates and the CLI caches the runnable payload.
 
-For task create/update/refresh, write the complete runnable task object as UTF-8 JSON and pass `--file`; do not pass obsolete task-construction or context flags. For a one-run context override, prefer `run start --script-context-file`, validate a top-level object, and preserve the full `options`/`vars` structure.
+Prefer a UTF-8 `--script-context-file` for create/update/refresh and one-run overrides. Validate a top-level object and preserve the full `options`/`vars` structure. Omission uses script defaults; explicit `{}` clears them.
 
 ## Workflow recipes
 
@@ -299,19 +302,19 @@ For task create/update/refresh, write the complete runnable task object as UTF-8
 3. If the user chooses creation or the list is empty, run `--json browser systems`, resolve a valid name/OS/version choice, and explicitly ask for proxy mode. Use live-help-supported `browser quick-create` inline proxy flags when selected; otherwise create without proxy or guide a supported alternative, then rediscover and parse the browser ID.
 4. Discover scripts only after the browser ID is resolved. Search `--json script my` first with the user's business terms as `--name`, `--description`, or `--category` filters; when it has no suitable result, search `--json script list` with the same filters and present market candidates. Do not require a selected market script to appear in both results.
 5. Immediately run `script execute-detail --id <scriptId>` after the script ID is chosen.
-6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. Resolve a complete execution payload from live output, preserve all required envelope fields, merge custom values into `payload.context`, and validate the resulting complete UTF-8 task JSON.
+6. Present the script's configurable execution parameters and explicitly ask whether the user wants defaults, custom values, or more explanation. For custom values, preserve required defaults and write the complete context object to a UTF-8 file.
 7. Derive a short task name from the chosen script and target; ask only if naming matters to the user.
 8. Show a compact summary: browser, script, task name, chosen execution parameters/context mode, and proposed execution behavior.
 9. Offer a final choice: 创建并立即运行（recommended when the user asked to run）、仅创建任务、返回修改选择. This is the correction checkpoint before task creation; do not create until it is resolved.
-10. Create the task with `task create --file <task.json>` and parse the generated local task ID rather than asking the user to copy it manually. This makes no network request.
+10. Create the remote task using the chosen browser ID and script ID plus optional context, then parse the returned task ID and cached runnable payload rather than asking the user to copy it manually.
 11. Run the new task with `run start --task-id <taskId>` only when the user chose immediate execution. Apply **Supervise every started run**: remain in the session until terminal state unless the user explicitly selected start without waiting. If the user chose create-only, report the task ID and the exact later run command.
 
-For a version 1 batch document containing a non-empty `tasks` array of complete runnable task objects, validate every item and use `task create-batch --file <tasks.json>`. Creation is atomic: any validation failure leaves the local database unchanged.
+For `task create-batch`, inspect live help for the current file schema and explain its non-atomic stop-on-error behavior before execution: tasks successfully created before the first error remain created and cached; later items are not attempted. Do not promise rollback.
 
 ### Run an existing task
 
 1. If no task ID is given, list tasks and offer up to three matches.
-2. Read `task get --id <id> --full`. Default to its cached complete payload when the user did not request a parameter override. Historical tasks with a complete cached payload retain their IDs; if payload is missing, require a complete local task JSON and repair it with `task refresh --id <id> --file <task.json>` before running.
+2. Read `task get --id <id> --full`. Default to its cached server-generated payload when the user did not request a parameter override. A pure-local task created by the transitional local-task release is incompatible: discover browser/script choices and recreate it through the current remote `task create` flow rather than attempting to run or refresh it in place.
 3. If override intent is present, inspect the task/script and resolve only changed context fields.
 4. Use the exact resolved full-bundle, portable, npm-shim, or npx invocation. Before a local run on a clean machine, confirm it does not target a package-internal native executable under `dist/<platform>/`. Apply the **runtime-readiness gate**; the npm/portable JavaScript launcher must remain in the call chain and must finish preparing script core/browser and injecting both paths before the native CLI may execute the task.
 5. Treat runtime preparation output as the blocking prefix of the same first run. If it fails, stop and report a preparation failure rather than a task/script failure; if it succeeds, apply **Supervise every started run** and continue until terminal state unless the user explicitly requested start without waiting.
@@ -341,7 +344,7 @@ Read-only discovery does not need confirmation. Respect the user's explicit requ
 
 Ask for explicit confirmation immediately before:
 
-- `task delete`, because it deletes the local task, its runs, and logs after checking for active runs.
+- `task delete`, because it deletes the remote task plus its local mirror, runs, and logs after checking for active runs.
 - `auth logout`, because it clears the local token.
 - `run cancel`, unless the user explicitly asked to stop that run.
 - `config set`, when it replaces a working endpoint, database, or executor.
@@ -353,12 +356,12 @@ Show the exact target ID/value and consequence in the confirmation. Never print 
 
 - Put global `--json` before the command: `multiagentor-cli --json task list`.
 - Quote values containing spaces or shell metacharacters using the active shell's native quoting; never paste PowerShell syntax into zsh/bash or vice versa.
-- For `task create`, `task update`, and `task refresh`, require `--file` containing a complete runnable UTF-8 task JSON. Use `task create-batch --file` only for a version 1 object with a non-empty `tasks` array.
+- For `task create`, require the browser ID and script ID forms shown by live help; use `--script-context-file` for custom context. Use current live help for update, refresh, and batch file shapes.
 - Preserve the full `options` and `vars` structure returned by `execute-detail` when changing one field, unless the script documentation explicitly supports a partial context.
 - In Windows PowerShell 5.1, prefer `--task-file <path>` over stdin for non-ASCII JSON. If stdin is required, set `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)` first.
 - Parse returned JSON with `ConvertFrom-Json` on PowerShell or a real JSON parser on macOS; do not scrape IDs from formatted tables.
-- Do not use `run execute` when the user expects a reusable local task or SQLite run record; it creates neither.
-- When live help describes local-only task storage, treat tasks, task state, and run records as local-only. Do not claim task CRUD calls a remote task API.
+- Do not use `run execute` when the user expects a reusable remote task or SQLite run record; it creates neither.
+- Treat task create/update/refresh/delete as remote task operations with a local cached mirror when current live help says so. Do not describe them as pure-local CRUD.
 - Do not start concurrent runs for the same browser environment ID. Different environment IDs may run concurrently. `run execute` should use `--environment-id` when persistent profile reuse and locking are required.
 
 ## Response shape

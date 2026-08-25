@@ -19,7 +19,9 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
 - Asks whether a newly created browser environment should use a proxy and uses live CLI support for inline or later environment proxy configuration.
 - Imports browser-extension Cookie JSON in merge or replace mode into the environment's persistent local profile without placing Cookie data in tasks or remote storage.
-- Creates, updates, and refreshes complete runnable tasks locally; supports atomic version 1 batch creation and fixed-profile concurrency rules.
+- Creates and manages remote tasks while caching server-generated runnable payloads locally; batch creation stops on the first error without rolling back earlier successes.
+- Opens a managed local browser for manual work with `browser launch`, waits for it to close, and supports fixed-profile concurrency rules.
+- On Windows, preserves safe system-proxy front chaining for task and manual browser launches when a supported unauthenticated HTTP system proxy is detected.
 - After a waited run, reads the result and emits a redacted, copyable prompt for repeating the same task.
 - Requests confirmation before destructive or potentially duplicative actions.
 
@@ -172,7 +174,7 @@ npx.cmd --yes multiagentor-cli@latest --help
 
 If Node.js or npm is unavailable, the skill automatically selects its OS-specific portable bootstrap. Windows x64 uses the verified Node.js ZIP under `%APPDATA%\multiagentor\portable-runtime`. Apple Silicon macOS selects releases using Node's `osx-arm64-tar` index label, while downloading the officially named `darwin-arm64.tar.gz` archive, and installs under `~/Library/Application Support/multiagentor/portable-runtime`. Neither changes the machine-wide PATH or installs Node.js system-wide.
 
-npm installation and local runtime readiness are separate stages. The npm package contains the native CLI and `multi-agentor-script-core` for each published platform key, but not the browser. On the first correctly npm-launched `run start` or `run execute`, the JavaScript launcher installs/verifies script core, selects the platform browser artifact, verifies its size and SHA-256, extracts it atomically, applies executable permissions on macOS, and injects both runtime paths before starting the task. If preparation fails, task execution does not begin. Never run a package-internal native binary under `dist/<platform>/` directly because that bypasses this gate.
+npm installation and local runtime readiness are separate stages. The npm package contains the native CLI and `multi-agentor-script-core` for each published platform key, but not the browser. Before the first correctly npm-launched `run start`, `run execute`, `browser cookie-import`, or `browser launch` needs local browser execution, the JavaScript launcher installs/verifies script core, selects the platform browser artifact, verifies its size and SHA-256, extracts it atomically, applies executable permissions on macOS, and injects both runtime paths. If preparation fails, execution does not begin. Never run a package-internal native binary under `dist/<platform>/` directly because that bypasses this gate.
 
 ## Use the skill
 
