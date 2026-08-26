@@ -27,12 +27,14 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 
 The skill guides Codex or WorkBuddy; the CLI performs the actual automation. Installing the skill does **not** install the CLI or browser runtime immediately.
 
+The entrypoint uses progressive disclosure: `SKILL.md` contains only shared routing and invariants, while installation, browser, task, supervision, and troubleshooting details live in focused references that are loaded only when relevant. Future features should be added to the matching reference; the entrypoint changes only for a new top-level intent, routing change, or universal invariant.
+
 ## Repository structure
 
 ```text
 skills/
 └── multiagentor/
-    ├── SKILL.md                     # Main agent instructions
+    ├── SKILL.md                     # Compact intent router and shared invariants
     ├── agents/
     │   └── openai.yaml              # Codex UI metadata
     ├── scripts/
@@ -42,7 +44,12 @@ skills/
     │   └── update-cli.ps1/.sh         # npm global CLI version update
     ├── VERSION                         # Independent skill SemVer
     ├── references/
-    │   └── command-reference.md     # CLI command reference
+    │   ├── installation-and-updates.md # Install, update, runtime readiness
+    │   ├── browser-workflows.md        # Browser, Cookie, proxy, Profile
+    │   ├── task-workflows.md           # Script discovery and remote tasks
+    │   ├── run-supervision.md          # Waiting, results, repeat prompts
+    │   ├── troubleshooting.md           # Diagnosis and mutation safety
+    │   └── command-reference.md         # Concise command shapes
     └── evals/
         └── evals.json               # Behavior evaluation cases
 ```

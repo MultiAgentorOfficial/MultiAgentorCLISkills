@@ -36,18 +36,25 @@ multiagentor-cli --help
 
 该技能为 Codex 或 WorkBuddy 提供操作规范，真正执行自动化的是 MultiAgentor CLI。安装技能时**不会**立即安装 CLI 或浏览器运行时。
 
+入口采用渐进披露结构：`SKILL.md` 只保留意图路由和所有工作流共享的硬约束；安装、浏览器、任务、运行监督和故障诊断分别放在按需读取的引用文件中。以后新增功能应优先写入所属引用；只有新增顶层意图、改变路由或增加全局不变量时才修改入口文件。
+
 ## 仓库结构
 
 ```text
 skills/
 └── multiagentor/
-    ├── SKILL.md                     # 技能主指令
+    ├── SKILL.md                     # 简洁的意图路由与全局约束
     ├── agents/
     │   └── openai.yaml              # Codex 界面元数据
     ├── scripts/
     │   └── bootstrap-portable-cli.ps1 # 便携 Node.js 与 CLI 引导脚本
     ├── references/
-    │   └── command-reference.md     # CLI 命令参考
+    │   ├── installation-and-updates.md # 安装、更新、运行时就绪
+    │   ├── browser-workflows.md        # 浏览器、Cookie、代理、Profile
+    │   ├── task-workflows.md           # 脚本发现与远端任务
+    │   ├── run-supervision.md          # 等待、结果与重复提示词
+    │   ├── troubleshooting.md           # 故障诊断与变更安全
+    │   └── command-reference.md         # 精简命令形式
     └── evals/
         └── evals.json               # 行为评测用例
 ```

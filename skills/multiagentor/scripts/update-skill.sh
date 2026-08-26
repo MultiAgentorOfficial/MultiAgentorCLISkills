@@ -9,7 +9,7 @@ if [ "${1:-}" = "--check-only" ]; then check_only=true; fi
 skill_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version_file="$skill_root/VERSION"
 integrity_ok=true
-for required in SKILL.md VERSION agents/openai.yaml references/command-reference.md scripts/update-skill.ps1 scripts/update-skill.sh; do
+for required in SKILL.md VERSION agents/openai.yaml references/installation-and-updates.md references/browser-workflows.md references/task-workflows.md references/run-supervision.md references/troubleshooting.md references/command-reference.md scripts/update-skill.ps1 scripts/update-skill.sh; do
   if [ ! -f "$skill_root/$required" ]; then integrity_ok=false; fi
 done
 if [ -f "$skill_root/SKILL.md" ] && ! grep -Eq '^name:[[:space:]]*multiagentor[[:space:]]*$' "$skill_root/SKILL.md"; then

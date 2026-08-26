@@ -1,4 +1,4 @@
 interface:
   display_name: "MultiAgentor"
-  short_description: "Guide MultiAgentor browsers, remote tasks, and supervised RPA"
-  default_prompt: "Use $multiagentor to self-check and update the skill and npm CLI, guide login plus browser, Cookie, proxy, script, and remote task choices, supervise execution, collect results, and give me a safe repeat-run prompt."
+  short_description: "Route and guide MultiAgentor browser, task, and RPA workflows"
+  default_prompt: "Use $multiagentor to self-check and update the skill and npm CLI, load only the references needed for my request, guide the required choices, supervise execution when started, collect results, and give me a safe repeat-run prompt."

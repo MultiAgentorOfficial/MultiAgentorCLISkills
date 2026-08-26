@@ -37,6 +37,11 @@ $requiredFiles = @(
     'SKILL.md',
     'VERSION',
     'agents\openai.yaml',
+    'references\installation-and-updates.md',
+    'references\browser-workflows.md',
+    'references\task-workflows.md',
+    'references\run-supervision.md',
+    'references\troubleshooting.md',
     'references\command-reference.md',
     'scripts\update-skill.ps1',
     'scripts\update-skill.sh'
