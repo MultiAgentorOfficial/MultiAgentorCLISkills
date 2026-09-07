@@ -19,6 +19,7 @@ This repository currently contains `multiagentor`, a reusable agent skill that t
 - Creates, runs, inspects, cancels, and troubleshoots local RPA runs.
 - Asks whether a newly created browser environment should use a proxy and uses live CLI support for inline or later environment proxy configuration.
 - Imports browser-extension Cookie JSON in merge or replace mode into the environment's persistent local profile without placing Cookie data in tasks or remote storage.
+- Exports and imports complete browser migration bundles containing server configuration and local sensitive state, while preserving the existing Cookie-array import format.
 - Creates and manages remote tasks while caching server-generated runnable payloads locally; batch creation stops on the first error without rolling back earlier successes.
 - Opens a managed local browser for manual work with `browser launch`, waits for it to close, and supports fixed-profile concurrency rules.
 - On Windows, preserves safe system-proxy front chaining for task and manual browser launches when a supported unauthenticated HTTP system proxy is detected.

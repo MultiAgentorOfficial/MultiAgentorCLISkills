@@ -150,6 +150,18 @@
       "prompt": "用 browser-123 打开浏览器让我手动登录，关闭后告诉我。不要创建或运行任务。",
       "expected_output": "按渐进披露路由只读取安装/运行时准备与 browser-workflows；需要精确命令时再读取 command-reference。不得加载脚本发现、任务创建或运行结果监督的完整流程。确认环境后通过正确启动器执行 browser launch --id browser-123，等待浏览器关闭并确认命令退出；不得创建任务、启动 run 或在浏览器刚打开时结束会话。",
       "files": []
+    },
+    {
+      "id": 26,
+      "prompt": "把 browser-123 的完整浏览器环境迁移到另一台机器，导出到 C:\\transfer\\browser-bundle.json；然后导入这个包。",
+      "expected_output": "读取 browser-workflows 与当前 browser export/import --help。导出前确认真实 browser ID 和目标路径；如果目标文件已存在，必须在使用 --force 覆盖前单独确认。明确迁移包包含服务端配置以及本地 Cookie、代理和账号信息，是明文敏感文件，不得打印、提交、上传或放进日志/任务/重复提示词。使用 browser export --id browser-123 --file <bundle>，导入时验证 bundle 格式并说明会恢复敏感浏览器状态，按影响范围请求确认；导入后重新发现并报告真实环境 ID。不要把迁移包当作 Cookie 数组，也不要改用 browser cookie-import。",
+      "files": []
+    },
+    {
+      "id": 27,
+      "prompt": "我只有浏览器扩展导出的 Cookie 数组 cookies.json，继续导入现有环境。",
+      "expected_output": "识别这是旧的 Cookie 数组格式而不是迁移包，继续使用 browser cookie-import --id <id> --file cookies.json，并让用户选择 merge 或 replace。不要要求 bundle 字段或调用 browser import；仍需保护 Cookie 内容并通过正确启动器准备运行时。",
+      "files": []
     }
   ]
 }

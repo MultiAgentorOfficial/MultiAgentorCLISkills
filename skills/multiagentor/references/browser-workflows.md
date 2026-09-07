@@ -1,6 +1,6 @@
-# Browser environments, Cookies, profiles, and proxies
+# Browser environments, Cookies, migration bundles, profiles, and proxies
 
-Read this reference when choosing/creating a browser environment, importing Cookies, configuring proxies, or opening a managed browser manually. Also read [installation-and-updates.md](installation-and-updates.md) when local runtime preparation is involved.
+Read this reference when choosing/creating a browser environment, importing/exporting Cookies or migration bundles, configuring proxies, or opening a managed browser manually. Also read [installation-and-updates.md](installation-and-updates.md) when local runtime preparation is involved.
 
 ## Choose before selecting a script
 
@@ -44,6 +44,25 @@ multiagentor-cli browser cookie-import --id <browserId> --file <cookies.json> [-
 ```
 
 Let the launcher prepare the current script core and browser runtime. Cookie contents remain in the current machine's Profile; they are not uploaded or stored in the CLI database. Never print them or copy them into task JSON, logs, repeat prompts, or commits.
+
+## Browser migration bundles
+
+Use the migration commands when the user wants to move a complete browser environment between machines or data roots:
+
+```text
+multiagentor-cli browser export --id <browserId> --file <bundle.json> [--force]
+multiagentor-cli browser import --file <bundle.json>
+```
+
+The bundle contains server environment configuration plus local Cookie, proxy, and account information. Treat it as a plaintext sensitive secret file:
+
+- Before export, show the exact browser ID and destination path. If the destination exists, require explicit confirmation before adding `--force`; never overwrite an existing bundle silently.
+- Before import, validate that the path exists and is the intended UTF-8 bundle format using current `browser import --help`. Explain that import can create/restore browser configuration and local sensitive state, then ask for confirmation if it changes an existing environment or profile.
+- Keep the bundle out of commits, chat messages, logs, task JSON, repeat-run prompts, shared folders, and unencrypted backup locations. Do not inspect or echo raw Cookies, proxy credentials, or account fields; report only metadata needed to confirm the operation.
+- Run both commands through the resolved npm/portable launcher and allow runtime preparation when local browser state is accessed. After import, rediscover the resulting browser environment and use its real ID for later tasks.
+- The existing `browser cookie-import --id <id> --file <cookies.json> [--mode merge|replace]` Cookie-array format remains supported. Do not pass a Cookie array to `browser import` or treat a migration bundle as a plain Cookie array.
+
+Migration bundles are for transfer only; they do not make sensitive values safe to share. Delete or securely destroy an exported bundle when the transfer is complete, after confirming the user wants it removed.
 
 ## Manual browser launch
 

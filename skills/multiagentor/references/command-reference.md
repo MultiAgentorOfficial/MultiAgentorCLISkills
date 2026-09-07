@@ -57,10 +57,12 @@ multiagentor-cli --json browser list [--search <text>] [--page 1] [--size 10]
 multiagentor-cli browser quick-create --name <name> --system-os <os> --system-version <version[,version...]> [--proxy-mode no|merge] [proxy flags]
 multiagentor-cli browser proxy --id <browserId> --proxy-mode <no|merge> [proxy flags]
 multiagentor-cli browser cookie-import --id <browserId> --file <cookies.json> [--mode merge|replace]
+multiagentor-cli browser export --id <browserId> --file <bundle.json> [--force]
+multiagentor-cli browser import --file <bundle.json>
 multiagentor-cli browser launch --id <browserId>
 ```
 
-Read [browser-workflows.md](browser-workflows.md) for proxy scopes, Cookie safety, persistent Profile locking, manual-launch waiting, and Windows system-proxy chaining.
+Read [browser-workflows.md](browser-workflows.md) for proxy scopes, Cookie safety, migration-bundle handling, persistent Profile locking, manual-launch waiting, and Windows system-proxy chaining.
 
 ## Remote tasks
 
